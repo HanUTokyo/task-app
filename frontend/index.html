@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Task Progress Management System</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="page">
+    <header class="page-header">
+      <div>
+        <h1>Task Progress Management System</h1>
+        <p>支持任务 CRUD、三阶段状态跟踪、搜索与排序。</p>
+      </div>
+      <div class="api-tag">API: <span id="apiBaseText"></span></div>
+    </header>
+
+    <section class="stats-grid" id="statsGrid">
+      <article class="stat-card">
+        <p>总任务数</p>
+        <h2 id="totalCount">0</h2>
+      </article>
+      <article class="stat-card">
+        <p>平均进度</p>
+        <h2 id="avgProgress">0.0%</h2>
+      </article>
+      <article class="stat-card">
+        <p>进行中任务</p>
+        <h2 id="doingCount">0</h2>
+      </article>
+      <article class="stat-card">
+        <p>已完成任务</p>
+        <h2 id="doneCount">0</h2>
+      </article>
+    </section>
+
+    <section class="content-grid">
+      <aside class="panel form-panel">
+        <h3 id="formTitle">新建任务</h3>
+        <form id="taskForm" novalidate>
+          <label>
+            Task Title
+            <input id="taskTitle" name="taskTitle" type="text" maxlength="200" required />
+          </label>
+
+          <label>
+            Task Description
+            <textarea id="taskDescription" name="taskDescription" maxlength="2000"></textarea>
+          </label>
+
+          <div class="phase-fields">
+            <label>
+              Phase I
+              <select id="phase1Status" name="phase1Status">
+                <option value="TODO">TODO</option>
+                <option value="DOING">DOING</option>
+                <option value="DONE">DONE</option>
+              </select>
+            </label>
+
+            <label>
+              Phase II
+              <select id="phase2Status" name="phase2Status">
+                <option value="TODO">TODO</option>
+                <option value="DOING">DOING</option>
+                <option value="DONE">DONE</option>
+              </select>
+            </label>
+
+            <label>
+              Phase III
+              <select id="phase3Status" name="phase3Status">
+                <option value="TODO">TODO</option>
+                <option value="DOING">DOING</option>
+                <option value="DONE">DONE</option>
+              </select>
+            </label>
+          </div>
+
+          <div class="form-actions">
+            <button id="submitBtn" type="submit" class="btn btn-primary">保存任务</button>
+            <button id="resetBtn" type="button" class="btn btn-secondary">重置</button>
+          </div>
+          <p class="hint">规则：TODO=0，DOING=50，DONE=100，overallProgress 为三阶段平均值。</p>
+        </form>
+      </aside>
+
+      <main class="panel list-panel">
+        <div class="toolbar">
+          <input id="keywordInput" type="text" placeholder="按标题搜索..." />
+          <select id="sortBySelect">
+            <option value="updatedAt">按更新时间</option>
+            <option value="overallProgress">按进度</option>
+          </select>
+          <select id="orderSelect">
+            <option value="desc">降序</option>
+            <option value="asc">升序</option>
+          </select>
+          <button id="refreshBtn" class="btn btn-secondary" type="button">刷新</button>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Title</th>
+                <th>Phase I</th>
+                <th>Phase II</th>
+                <th>Phase III</th>
+                <th>Progress</th>
+                <th>Updated At</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="taskTableBody"></tbody>
+          </table>
+        </div>
+
+        <p id="emptyState" class="empty-state hidden">当前没有任务数据。</p>
+      </main>
+    </section>
+  </div>
+
+  <div id="toast" class="toast hidden"></div>
+  <script src="app.js"></script>
+</body>
+</html>
