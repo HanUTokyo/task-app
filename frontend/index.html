@@ -36,58 +36,9 @@
     </section>
 
     <section class="content-grid">
-      <aside class="panel form-panel">
-        <h3 id="formTitle">新建任务</h3>
-        <form id="taskForm" novalidate>
-          <label>
-            Task Title
-            <input id="taskTitle" name="taskTitle" type="text" maxlength="200" required />
-          </label>
-
-          <label>
-            Task Description
-            <textarea id="taskDescription" name="taskDescription" maxlength="2000"></textarea>
-          </label>
-
-          <div class="phase-fields">
-            <label>
-              Phase I
-              <select id="phase1Status" name="phase1Status">
-                <option value="TODO">TODO</option>
-                <option value="DOING">DOING</option>
-                <option value="DONE">DONE</option>
-              </select>
-            </label>
-
-            <label>
-              Phase II
-              <select id="phase2Status" name="phase2Status">
-                <option value="TODO">TODO</option>
-                <option value="DOING">DOING</option>
-                <option value="DONE">DONE</option>
-              </select>
-            </label>
-
-            <label>
-              Phase III
-              <select id="phase3Status" name="phase3Status">
-                <option value="TODO">TODO</option>
-                <option value="DOING">DOING</option>
-                <option value="DONE">DONE</option>
-              </select>
-            </label>
-          </div>
-
-          <div class="form-actions">
-            <button id="submitBtn" type="submit" class="btn btn-primary">保存任务</button>
-            <button id="resetBtn" type="button" class="btn btn-secondary">重置</button>
-          </div>
-          <p class="hint">规则：TODO=0，DOING=50，DONE=100，overallProgress 为三阶段平均值。</p>
-        </form>
-      </aside>
-
       <main class="panel list-panel">
         <div class="toolbar">
+          <button id="openTaskModalBtn" class="btn btn-primary" type="button">新建任务</button>
           <input id="keywordInput" type="text" placeholder="按标题搜索..." />
           <select id="sortBySelect">
             <option value="updatedAt">按更新时间</option>
@@ -121,6 +72,62 @@
         <p id="emptyState" class="empty-state hidden">当前没有任务数据。</p>
       </main>
     </section>
+  </div>
+
+  <div id="taskModal" class="modal-overlay hidden">
+    <div class="panel form-panel modal-panel" role="dialog" aria-modal="true" aria-labelledby="formTitle">
+      <div class="modal-header">
+        <h3 id="formTitle">新建任务</h3>
+        <button id="closeTaskModalBtn" type="button" class="btn btn-secondary close-btn">关闭</button>
+      </div>
+
+      <form id="taskForm" novalidate>
+        <label>
+          Task Title
+          <input id="taskTitle" name="taskTitle" type="text" maxlength="200" required />
+        </label>
+
+        <label>
+          Task Description
+          <textarea id="taskDescription" name="taskDescription" maxlength="2000"></textarea>
+        </label>
+
+        <div class="phase-fields">
+          <label>
+            Phase I
+            <select id="phase1Status" name="phase1Status">
+              <option value="TODO">TODO</option>
+              <option value="DOING">DOING</option>
+              <option value="DONE">DONE</option>
+            </select>
+          </label>
+
+          <label>
+            Phase II
+            <select id="phase2Status" name="phase2Status">
+              <option value="TODO">TODO</option>
+              <option value="DOING">DOING</option>
+              <option value="DONE">DONE</option>
+            </select>
+          </label>
+
+          <label>
+            Phase III
+            <select id="phase3Status" name="phase3Status">
+              <option value="TODO">TODO</option>
+              <option value="DOING">DOING</option>
+              <option value="DONE">DONE</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="form-actions">
+          <button id="submitBtn" type="submit" class="btn btn-primary">保存任务</button>
+          <button id="resetBtn" type="button" class="btn btn-secondary">重置</button>
+        </div>
+        <p class="hint">规则：TODO=0，DOING=50，DONE=100，overallProgress 为三阶段平均值。</p>
+      </form>
+    </div>
   </div>
 
   <div id="toast" class="toast hidden"></div>

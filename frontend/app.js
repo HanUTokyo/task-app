@@ -12,6 +12,9 @@ let editingTaskId = null;
 
 const elements = {
   apiBaseText: document.getElementById("apiBaseText"),
+  taskModal: document.getElementById("taskModal"),
+  openTaskModalBtn: document.getElementById("openTaskModalBtn"),
+  closeTaskModalBtn: document.getElementById("closeTaskModalBtn"),
   taskForm: document.getElementById("taskForm"),
   formTitle: document.getElementById("formTitle"),
   submitBtn: document.getElementById("submitBtn"),
@@ -43,6 +46,23 @@ function init() {
 }
 
 function bindEvents() {
+  elements.openTaskModalBtn.addEventListener("click", () => {
+    resetForm();
+    openTaskModal();
+  });
+  elements.closeTaskModalBtn.addEventListener("click", closeTaskModal);
+  elements.taskModal.addEventListener("click", (event) => {
+    if (event.target === elements.taskModal) {
+      closeTaskModal();
+    }
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && !elements.taskModal.classList.contains("hidden")) {
+      closeTaskModal();
+    }
+  });
+
   elements.taskForm.addEventListener("submit", handleSubmit);
   elements.resetBtn.addEventListener("click", resetForm);
   elements.refreshBtn.addEventListener("click", loadTasks);
@@ -83,6 +103,18 @@ function bindEvents() {
       await removeTask(taskId);
     }
   });
+}
+
+function openTaskModal() {
+  elements.taskModal.classList.remove("hidden");
+  document.body.classList.add("modal-open");
+  elements.taskTitle.focus();
+}
+
+function closeTaskModal() {
+  elements.taskModal.classList.add("hidden");
+  document.body.classList.remove("modal-open");
+  resetForm();
 }
 
 async function loadTasks() {
@@ -170,7 +202,7 @@ function startEditing(taskId) {
   elements.phase2Status.value = task.phase2Status;
   elements.phase3Status.value = task.phase3Status;
 
-  window.scrollTo({ top: 0, behavior: "smooth" });
+  openTaskModal();
 }
 
 function resetForm() {
@@ -222,7 +254,7 @@ async function handleSubmit(event) {
       showToast("任务创建成功");
     }
 
-    resetForm();
+    closeTaskModal();
     await loadTasks();
   } catch (error) {
     showToast(error.message, true);
@@ -241,7 +273,7 @@ async function removeTask(taskId) {
     });
 
     if (editingTaskId === taskId) {
-      resetForm();
+      closeTaskModal();
     }
 
     showToast("任务删除成功");

@@ -87,7 +87,7 @@ body {
 
 .content-grid {
   display: grid;
-  grid-template-columns: 360px 1fr;
+  grid-template-columns: 1fr;
   gap: 16px;
 }
 
@@ -192,7 +192,7 @@ select:focus {
 
 .toolbar {
   display: grid;
-  grid-template-columns: 1.3fr 1fr 1fr auto;
+  grid-template-columns: auto 1.3fr 1fr 1fr auto;
   gap: 8px;
   margin-bottom: 12px;
 }
@@ -258,6 +258,39 @@ tbody tr:hover {
   gap: 6px;
 }
 
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(15, 23, 42, 0.45);
+  padding: 20px;
+  z-index: 40;
+}
+
+.modal-panel {
+  width: min(640px, 100%);
+  max-height: calc(100vh - 40px);
+  overflow: auto;
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.close-btn {
+  padding: 6px 10px;
+}
+
+body.modal-open {
+  overflow: hidden;
+}
+
 .empty-state {
   text-align: center;
   margin: 14px 0 0;
@@ -289,9 +322,6 @@ tbody tr:hover {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .content-grid {
-    grid-template-columns: 1fr;
-  }
 }
 
 @media (max-width: 680px) {
