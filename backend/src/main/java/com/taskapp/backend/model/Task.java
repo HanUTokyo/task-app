@@ -7,6 +7,7 @@ public class Task {
     private Long id;
     private String taskTitle;
     private String taskDescription;
+    private ProjectPriority priority;
     private PhaseStatus phase1Status;
     private PhaseStatus phase2Status;
     private PhaseStatus phase3Status;
@@ -36,6 +37,14 @@ public class Task {
 
     public void setTaskDescription(String taskDescription) {
         this.taskDescription = taskDescription;
+    }
+
+    public ProjectPriority getPriority() {
+        return priority;
+    }
+
+    public void setPriority(ProjectPriority priority) {
+        this.priority = priority;
     }
 
     public PhaseStatus getPhase1Status() {

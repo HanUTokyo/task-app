@@ -1,9 +1,12 @@
 package com.taskapp.backend.dto;
 
-import com.taskapp.backend.model.PhaseStatus;
+import com.taskapp.backend.model.ProjectPriority;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
+
+import java.util.ArrayList;
+import java.util.List;
 
 public class TaskCreateRequest {
 
@@ -14,14 +17,10 @@ public class TaskCreateRequest {
     @Size(max = 2000, message = "taskDescription must be at most 2000 characters")
     private String taskDescription;
 
-    @NotNull(message = "phase1Status is required")
-    private PhaseStatus phase1Status = PhaseStatus.TODO;
+    private ProjectPriority priority;
 
-    @NotNull(message = "phase2Status is required")
-    private PhaseStatus phase2Status = PhaseStatus.TODO;
-
-    @NotNull(message = "phase3Status is required")
-    private PhaseStatus phase3Status = PhaseStatus.TODO;
+    @Valid
+    private List<PhaseRequest> phases = new ArrayList<>();
 
     public String getTaskTitle() {
         return taskTitle;
@@ -39,27 +38,19 @@ public class TaskCreateRequest {
         this.taskDescription = taskDescription;
     }
 
-    public PhaseStatus getPhase1Status() {
-        return phase1Status;
+    public ProjectPriority getPriority() {
+        return priority;
     }
 
-    public void setPhase1Status(PhaseStatus phase1Status) {
-        this.phase1Status = phase1Status;
+    public void setPriority(ProjectPriority priority) {
+        this.priority = priority;
     }
 
-    public PhaseStatus getPhase2Status() {
-        return phase2Status;
+    public List<PhaseRequest> getPhases() {
+        return phases;
     }
 
-    public void setPhase2Status(PhaseStatus phase2Status) {
-        this.phase2Status = phase2Status;
-    }
-
-    public PhaseStatus getPhase3Status() {
-        return phase3Status;
-    }
-
-    public void setPhase3Status(PhaseStatus phase3Status) {
-        this.phase3Status = phase3Status;
+    public void setPhases(List<PhaseRequest> phases) {
+        this.phases = phases;
     }
 }

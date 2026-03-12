@@ -1,6 +1,7 @@
 package com.taskapp.backend.repository;
 
 import com.taskapp.backend.model.PhaseStatus;
+import com.taskapp.backend.model.ProjectPriority;
 import com.taskapp.backend.model.Task;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
@@ -34,6 +35,7 @@ public class TaskRepository {
         task.setPhase1Status(PhaseStatus.valueOf(rs.getString("phase1_status")));
         task.setPhase2Status(PhaseStatus.valueOf(rs.getString("phase2_status")));
         task.setPhase3Status(PhaseStatus.valueOf(rs.getString("phase3_status")));
+        task.setPriority(parsePriority(rs.getString("priority")));
         task.setOverallProgress(rs.getDouble("overall_progress"));
         task.setCreatedAt(parseDateTime(rs.getString("created_at")));
         task.setUpdatedAt(parseDateTime(rs.getString("updated_at")));
@@ -47,7 +49,7 @@ public class TaskRepository {
     public List<Task> findAll(String keyword, String sortBy, String order) {
         StringBuilder sql = new StringBuilder("""
                 SELECT id, task_title, task_description, phase1_status, phase2_status, phase3_status,
-                       overall_progress, created_at, updated_at
+                       priority, overall_progress, created_at, updated_at
                 FROM tasks
                 """);
 
@@ -64,7 +66,7 @@ public class TaskRepository {
     public Optional<Task> findById(Long id) {
         String sql = """
                 SELECT id, task_title, task_description, phase1_status, phase2_status, phase3_status,
-                       overall_progress, created_at, updated_at
+                       priority, overall_progress, created_at, updated_at
                 FROM tasks
                 WHERE id = ?
                 """;
@@ -76,8 +78,8 @@ public class TaskRepository {
         String sql = """
                 INSERT INTO tasks (
                     task_title, task_description, phase1_status, phase2_status, phase3_status,
-                    overall_progress, created_at, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    priority, overall_progress, created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """;
 
         KeyHolder keyHolder = new GeneratedKeyHolder();
@@ -88,9 +90,10 @@ public class TaskRepository {
             ps.setString(3, task.getPhase1Status().name());
             ps.setString(4, task.getPhase2Status().name());
             ps.setString(5, task.getPhase3Status().name());
-            ps.setDouble(6, task.getOverallProgress());
-            ps.setString(7, formatDateTime(task.getCreatedAt()));
-            ps.setString(8, formatDateTime(task.getUpdatedAt()));
+            ps.setString(6, task.getPriority().name());
+            ps.setDouble(7, task.getOverallProgress());
+            ps.setString(8, formatDateTime(task.getCreatedAt()));
+            ps.setString(9, formatDateTime(task.getUpdatedAt()));
             return ps;
         }, keyHolder);
 
@@ -108,6 +111,7 @@ public class TaskRepository {
                     phase1_status = ?,
                     phase2_status = ?,
                     phase3_status = ?,
+                    priority = ?,
                     overall_progress = ?,
                     updated_at = ?
                 WHERE id = ?
@@ -120,6 +124,7 @@ public class TaskRepository {
                 task.getPhase1Status().name(),
                 task.getPhase2Status().name(),
                 task.getPhase3Status().name(),
+                task.getPriority().name(),
                 task.getOverallProgress(),
                 formatDateTime(task.getUpdatedAt()),
                 task.getId()
@@ -137,13 +142,16 @@ public class TaskRepository {
         if ("overallProgress".equalsIgnoreCase(sortBy)) {
             return "overall_progress";
         }
+        if ("priority".equalsIgnoreCase(sortBy)) {
+            return "CASE priority WHEN 'HIGH' THEN 3 WHEN 'MEDIUM' THEN 2 WHEN 'LOW' THEN 1 ELSE 0 END";
+        }
         if ("createdAt".equalsIgnoreCase(sortBy)) {
             return "created_at";
         }
         if ("taskTitle".equalsIgnoreCase(sortBy)) {
             return "task_title";
         }
-        return "updated_at";
+        return "CASE priority WHEN 'HIGH' THEN 3 WHEN 'MEDIUM' THEN 2 WHEN 'LOW' THEN 1 ELSE 0 END";
     }
 
     private String resolveSortDirection(String order) {
@@ -162,6 +170,18 @@ public class TaskRepository {
             return LocalDateTime.parse(value, DB_DATE_TIME_FORMATTER);
         } catch (DateTimeParseException ex) {
             return LocalDateTime.parse(value);
+        }
+    }
+
+    private ProjectPriority parsePriority(String value) {
+        if (value == null || value.isBlank()) {
+            return ProjectPriority.MEDIUM;
+        }
+
+        try {
+            return ProjectPriority.valueOf(value);
+        } catch (IllegalArgumentException ex) {
+            return ProjectPriority.MEDIUM;
         }
     }
 }

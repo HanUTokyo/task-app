@@ -1,17 +1,15 @@
 package com.taskapp.backend.dto;
 
-import com.taskapp.backend.model.PhaseStatus;
-
 import java.time.LocalDateTime;
+import java.util.List;
 
 public class TaskResponse {
 
     private Long id;
     private String taskTitle;
     private String taskDescription;
-    private PhaseStatus phase1Status;
-    private PhaseStatus phase2Status;
-    private PhaseStatus phase3Status;
+    private String priority;
+    private List<PhaseResponse> phases;
     private double overallProgress;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
@@ -40,28 +38,20 @@ public class TaskResponse {
         this.taskDescription = taskDescription;
     }
 
-    public PhaseStatus getPhase1Status() {
-        return phase1Status;
+    public String getPriority() {
+        return priority;
     }
 
-    public void setPhase1Status(PhaseStatus phase1Status) {
-        this.phase1Status = phase1Status;
+    public void setPriority(String priority) {
+        this.priority = priority;
     }
 
-    public PhaseStatus getPhase2Status() {
-        return phase2Status;
+    public List<PhaseResponse> getPhases() {
+        return phases;
     }
 
-    public void setPhase2Status(PhaseStatus phase2Status) {
-        this.phase2Status = phase2Status;
-    }
-
-    public PhaseStatus getPhase3Status() {
-        return phase3Status;
-    }
-
-    public void setPhase3Status(PhaseStatus phase3Status) {
-        this.phase3Status = phase3Status;
+    public void setPhases(List<PhaseResponse> phases) {
+        this.phases = phases;
     }
 
     public double getOverallProgress() {

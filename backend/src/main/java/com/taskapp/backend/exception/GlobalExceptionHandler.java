@@ -36,6 +36,8 @@ public class GlobalExceptionHandler {
         String message = "Invalid request body";
         if (ex.getMessage() != null && ex.getMessage().contains("PhaseStatus")) {
             message = "phase status must be one of TODO, DOING, DONE";
+        } else if (ex.getMessage() != null && ex.getMessage().contains("ProjectPriority")) {
+            message = "priority must be one of HIGH, MEDIUM, LOW";
         }
         return ResponseEntity.badRequest()
                 .body(ApiResponse.failure(message, null));
