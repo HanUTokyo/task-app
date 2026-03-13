@@ -7,6 +7,7 @@ public class TaskPhase {
     private Long id;
     private Long taskId;
     private String phaseName;
+    private String phaseDescription;
     private PhaseStatus phaseStatus;
     private int sortOrder;
     private LocalDateTime createdAt;
@@ -42,6 +43,14 @@ public class TaskPhase {
 
     public void setPhaseStatus(PhaseStatus phaseStatus) {
         this.phaseStatus = phaseStatus;
+    }
+
+    public String getPhaseDescription() {
+        return phaseDescription;
+    }
+
+    public void setPhaseDescription(String phaseDescription) {
+        this.phaseDescription = phaseDescription;
     }
 
     public int getSortOrder() {

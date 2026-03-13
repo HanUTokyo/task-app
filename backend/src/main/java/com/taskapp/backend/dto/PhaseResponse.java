@@ -6,6 +6,7 @@ public class PhaseResponse {
 
     private Long id;
     private String phaseName;
+    private String phaseDescription;
     private PhaseStatus phaseStatus;
     private int sortOrder;
 
@@ -23,6 +24,14 @@ public class PhaseResponse {
 
     public void setPhaseName(String phaseName) {
         this.phaseName = phaseName;
+    }
+
+    public String getPhaseDescription() {
+        return phaseDescription;
+    }
+
+    public void setPhaseDescription(String phaseDescription) {
+        this.phaseDescription = phaseDescription;
     }
 
     public PhaseStatus getPhaseStatus() {

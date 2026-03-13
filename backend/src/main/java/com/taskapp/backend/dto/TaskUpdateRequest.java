@@ -17,6 +17,15 @@ public class TaskUpdateRequest {
     @Size(max = 2000, message = "taskDescription must be at most 2000 characters")
     private String taskDescription;
 
+    @Size(max = 20000, message = "recentDecisions must be at most 20000 characters")
+    private String recentDecisions;
+
+    @Size(max = 20000, message = "recentExperiments must be at most 20000 characters")
+    private String recentExperiments;
+
+    @Size(max = 20000, message = "knowledgeHighlights must be at most 20000 characters")
+    private String knowledgeHighlights;
+
     private ProjectPriority priority;
 
     @Valid
@@ -36,6 +45,30 @@ public class TaskUpdateRequest {
 
     public void setTaskDescription(String taskDescription) {
         this.taskDescription = taskDescription;
+    }
+
+    public String getRecentDecisions() {
+        return recentDecisions;
+    }
+
+    public void setRecentDecisions(String recentDecisions) {
+        this.recentDecisions = recentDecisions;
+    }
+
+    public String getRecentExperiments() {
+        return recentExperiments;
+    }
+
+    public void setRecentExperiments(String recentExperiments) {
+        this.recentExperiments = recentExperiments;
+    }
+
+    public String getKnowledgeHighlights() {
+        return knowledgeHighlights;
+    }
+
+    public void setKnowledgeHighlights(String knowledgeHighlights) {
+        this.knowledgeHighlights = knowledgeHighlights;
     }
 
     public ProjectPriority getPriority() {

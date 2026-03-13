@@ -8,8 +8,12 @@ public class TaskResponse {
     private Long id;
     private String taskTitle;
     private String taskDescription;
+    private String recentDecisions;
+    private String recentExperiments;
+    private String knowledgeHighlights;
     private String priority;
     private List<PhaseResponse> phases;
+    private List<TaskNoteResponse> notes;
     private double overallProgress;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
@@ -38,6 +42,30 @@ public class TaskResponse {
         this.taskDescription = taskDescription;
     }
 
+    public String getRecentDecisions() {
+        return recentDecisions;
+    }
+
+    public void setRecentDecisions(String recentDecisions) {
+        this.recentDecisions = recentDecisions;
+    }
+
+    public String getRecentExperiments() {
+        return recentExperiments;
+    }
+
+    public void setRecentExperiments(String recentExperiments) {
+        this.recentExperiments = recentExperiments;
+    }
+
+    public String getKnowledgeHighlights() {
+        return knowledgeHighlights;
+    }
+
+    public void setKnowledgeHighlights(String knowledgeHighlights) {
+        this.knowledgeHighlights = knowledgeHighlights;
+    }
+
     public String getPriority() {
         return priority;
     }
@@ -52,6 +80,14 @@ public class TaskResponse {
 
     public void setPhases(List<PhaseResponse> phases) {
         this.phases = phases;
+    }
+
+    public List<TaskNoteResponse> getNotes() {
+        return notes;
+    }
+
+    public void setNotes(List<TaskNoteResponse> notes) {
+        this.notes = notes;
     }
 
     public double getOverallProgress() {

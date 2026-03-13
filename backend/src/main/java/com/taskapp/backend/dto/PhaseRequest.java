@@ -11,6 +11,9 @@ public class PhaseRequest {
     @Size(max = 100, message = "phaseName must be at most 100 characters")
     private String phaseName;
 
+    @Size(max = 2000, message = "phaseDescription must be at most 2000 characters")
+    private String phaseDescription;
+
     @NotNull(message = "phaseStatus is required")
     private PhaseStatus phaseStatus;
 
@@ -28,5 +31,13 @@ public class PhaseRequest {
 
     public void setPhaseStatus(PhaseStatus phaseStatus) {
         this.phaseStatus = phaseStatus;
+    }
+
+    public String getPhaseDescription() {
+        return phaseDescription;
+    }
+
+    public void setPhaseDescription(String phaseDescription) {
+        this.phaseDescription = phaseDescription;
     }
 }

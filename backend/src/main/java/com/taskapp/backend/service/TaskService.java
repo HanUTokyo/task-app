@@ -3,13 +3,19 @@ package com.taskapp.backend.service;
 import com.taskapp.backend.dto.PhaseRequest;
 import com.taskapp.backend.dto.PhaseResponse;
 import com.taskapp.backend.dto.TaskCreateRequest;
+import com.taskapp.backend.dto.TaskNoteCreateRequest;
+import com.taskapp.backend.dto.TaskNoteResponse;
 import com.taskapp.backend.dto.TaskResponse;
 import com.taskapp.backend.dto.TaskUpdateRequest;
 import com.taskapp.backend.exception.TaskNotFoundException;
 import com.taskapp.backend.model.PhaseStatus;
 import com.taskapp.backend.model.ProjectPriority;
 import com.taskapp.backend.model.Task;
+import com.taskapp.backend.model.TaskKnowledge;
+import com.taskapp.backend.model.TaskNote;
 import com.taskapp.backend.model.TaskPhase;
+import com.taskapp.backend.repository.TaskKnowledgeRepository;
+import com.taskapp.backend.repository.TaskNoteRepository;
 import com.taskapp.backend.repository.TaskPhaseRepository;
 import com.taskapp.backend.repository.TaskRepository;
 import org.springframework.stereotype.Service;
@@ -29,16 +35,27 @@ public class TaskService {
 
     private final TaskRepository taskRepository;
     private final TaskPhaseRepository taskPhaseRepository;
+    private final TaskKnowledgeRepository taskKnowledgeRepository;
+    private final TaskNoteRepository taskNoteRepository;
 
-    public TaskService(TaskRepository taskRepository, TaskPhaseRepository taskPhaseRepository) {
+    public TaskService(
+            TaskRepository taskRepository,
+            TaskPhaseRepository taskPhaseRepository,
+            TaskKnowledgeRepository taskKnowledgeRepository,
+            TaskNoteRepository taskNoteRepository
+    ) {
         this.taskRepository = taskRepository;
         this.taskPhaseRepository = taskPhaseRepository;
+        this.taskKnowledgeRepository = taskKnowledgeRepository;
+        this.taskNoteRepository = taskNoteRepository;
     }
 
     public List<TaskResponse> getAllTasks(String keyword, String sortBy, String order) {
         List<Task> tasks = taskRepository.findAll(keyword, sortBy, order);
         List<Long> taskIds = tasks.stream().map(Task::getId).toList();
         Map<Long, List<TaskPhase>> phaseMap = taskPhaseRepository.findByTaskIds(taskIds);
+        Map<Long, TaskKnowledge> knowledgeMap = taskKnowledgeRepository.findByTaskIds(taskIds);
+        Map<Long, List<TaskNote>> noteMap = taskNoteRepository.findByTaskIds(taskIds);
 
         return tasks.stream()
                 .map(task -> {
@@ -46,7 +63,7 @@ public class TaskService {
                     if (phases == null || phases.isEmpty()) {
                         phases = backfillLegacyPhases(task);
                     }
-                    return toResponse(task, phases);
+                    return toResponse(task, phases, knowledgeMap.get(task.getId()), noteMap.get(task.getId()));
                 })
                 .toList();
     }
@@ -59,7 +76,9 @@ public class TaskService {
         if (phases.isEmpty()) {
             phases = backfillLegacyPhases(task);
         }
-        return toResponse(task, phases);
+        TaskKnowledge knowledge = taskKnowledgeRepository.findByTaskId(id).orElse(null);
+        List<TaskNote> notes = taskNoteRepository.findByTaskId(id);
+        return toResponse(task, phases, knowledge, notes);
     }
 
     public TaskResponse createTask(TaskCreateRequest request) {
@@ -77,9 +96,18 @@ public class TaskService {
 
         Task savedTask = taskRepository.save(task);
         taskPhaseRepository.insertAll(savedTask.getId(), normalizedPhases, now);
+        taskKnowledgeRepository.upsert(
+                savedTask.getId(),
+                request.getRecentDecisions(),
+                request.getRecentExperiments(),
+                request.getKnowledgeHighlights(),
+                now
+        );
 
         List<TaskPhase> savedPhases = taskPhaseRepository.findByTaskId(savedTask.getId());
-        return toResponse(savedTask, savedPhases);
+        TaskKnowledge knowledge = taskKnowledgeRepository.findByTaskId(savedTask.getId()).orElse(null);
+        List<TaskNote> notes = taskNoteRepository.findByTaskId(savedTask.getId());
+        return toResponse(savedTask, savedPhases, knowledge, notes);
     }
 
     public TaskResponse updateTask(Long id, TaskUpdateRequest request) {
@@ -98,17 +126,39 @@ public class TaskService {
 
         Task updatedTask = taskRepository.update(existingTask);
         taskPhaseRepository.replaceAll(id, normalizedPhases, now);
+        taskKnowledgeRepository.upsert(
+                id,
+                request.getRecentDecisions(),
+                request.getRecentExperiments(),
+                request.getKnowledgeHighlights(),
+                now
+        );
 
         List<TaskPhase> savedPhases = taskPhaseRepository.findByTaskId(id);
-        return toResponse(updatedTask, savedPhases);
+        TaskKnowledge knowledge = taskKnowledgeRepository.findByTaskId(id).orElse(null);
+        List<TaskNote> notes = taskNoteRepository.findByTaskId(id);
+        return toResponse(updatedTask, savedPhases, knowledge, notes);
     }
 
     public void deleteTask(Long id) {
         Task existingTask = taskRepository.findById(id)
                 .orElseThrow(() -> new TaskNotFoundException(id));
 
-        taskPhaseRepository.deleteByTaskId(existingTask.getId());
         taskRepository.deleteById(existingTask.getId());
+    }
+
+    public TaskNoteResponse addTaskNote(Long taskId, TaskNoteCreateRequest request) {
+        Task existingTask = taskRepository.findById(taskId)
+                .orElseThrow(() -> new TaskNotFoundException(taskId));
+
+        LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
+        TaskNote saved = taskNoteRepository.save(
+                existingTask.getId(),
+                request.getNoteType(),
+                request.getNoteContent(),
+                now
+        );
+        return toNoteResponse(saved);
     }
 
     private List<TaskPhase> normalizePhases(List<PhaseRequest> phaseRequests) {
@@ -127,6 +177,7 @@ public class TaskService {
 
                 TaskPhase phase = new TaskPhase();
                 phase.setPhaseName(phaseName);
+                phase.setPhaseDescription(normalizePhaseDescription(request.getPhaseDescription()));
                 phase.setPhaseStatus(request.getPhaseStatus() == null ? PhaseStatus.TODO : request.getPhaseStatus());
                 phases.add(phase);
             }
@@ -136,6 +187,7 @@ public class TaskService {
             int index = phases.size() + 1;
             TaskPhase phase = new TaskPhase();
             phase.setPhaseName("阶段" + index);
+            phase.setPhaseDescription(null);
             phase.setPhaseStatus(PhaseStatus.TODO);
             phases.add(phase);
         }
@@ -175,13 +227,17 @@ public class TaskService {
                 .doubleValue();
     }
 
-    private TaskResponse toResponse(Task task, List<TaskPhase> phases) {
+    private TaskResponse toResponse(Task task, List<TaskPhase> phases, TaskKnowledge knowledge, List<TaskNote> notes) {
         TaskResponse response = new TaskResponse();
         response.setId(task.getId());
         response.setTaskTitle(task.getTaskTitle());
         response.setTaskDescription(task.getTaskDescription());
+        response.setRecentDecisions(knowledge == null ? null : knowledge.getRecentDecisions());
+        response.setRecentExperiments(knowledge == null ? null : knowledge.getRecentExperiments());
+        response.setKnowledgeHighlights(knowledge == null ? null : knowledge.getKnowledgeHighlights());
         response.setPriority(task.getPriority() == null ? ProjectPriority.MEDIUM.name() : task.getPriority().name());
         response.setPhases(phases.stream().map(this::toPhaseResponse).toList());
+        response.setNotes((notes == null ? List.<TaskNote>of() : notes).stream().map(this::toNoteResponse).toList());
         response.setOverallProgress(task.getOverallProgress());
         response.setCreatedAt(task.getCreatedAt());
         response.setUpdatedAt(task.getUpdatedAt());
@@ -192,8 +248,19 @@ public class TaskService {
         PhaseResponse response = new PhaseResponse();
         response.setId(phase.getId());
         response.setPhaseName(phase.getPhaseName());
+        response.setPhaseDescription(phase.getPhaseDescription());
         response.setPhaseStatus(phase.getPhaseStatus());
         response.setSortOrder(phase.getSortOrder());
+        return response;
+    }
+
+    private TaskNoteResponse toNoteResponse(TaskNote note) {
+        TaskNoteResponse response = new TaskNoteResponse();
+        response.setId(note.getId());
+        response.setNoteType(note.getNoteType());
+        response.setNoteContent(note.getNoteContent());
+        response.setCreatedAt(note.getCreatedAt());
+        response.setUpdatedAt(note.getUpdatedAt());
         return response;
     }
 
@@ -213,6 +280,7 @@ public class TaskService {
         TaskPhase phase = new TaskPhase();
         phase.setTaskId(taskId);
         phase.setPhaseName(name);
+        phase.setPhaseDescription(null);
         phase.setPhaseStatus(status == null ? PhaseStatus.TODO : status);
         phase.setSortOrder(sortOrder);
         return phase;
@@ -231,5 +299,13 @@ public class TaskService {
             return ProjectPriority.MEDIUM;
         }
         return requestPriority;
+    }
+
+    private String normalizePhaseDescription(String description) {
+        if (description == null) {
+            return null;
+        }
+        String trimmed = description.trim();
+        return trimmed.isEmpty() ? null : trimmed;
     }
 }

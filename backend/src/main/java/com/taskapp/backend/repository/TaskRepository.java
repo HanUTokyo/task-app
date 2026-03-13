@@ -51,11 +51,12 @@ public class TaskRepository {
                 SELECT id, task_title, task_description, phase1_status, phase2_status, phase3_status,
                        priority, overall_progress, created_at, updated_at
                 FROM tasks
+                WHERE is_deleted = 0
                 """);
 
         List<Object> params = new ArrayList<>();
         if (keyword != null && !keyword.isBlank()) {
-            sql.append(" WHERE LOWER(task_title) LIKE ?");
+            sql.append(" AND LOWER(task_title) LIKE ?");
             params.add("%" + keyword.trim().toLowerCase(Locale.ROOT) + "%");
         }
 
@@ -69,6 +70,7 @@ public class TaskRepository {
                        priority, overall_progress, created_at, updated_at
                 FROM tasks
                 WHERE id = ?
+                  AND is_deleted = 0
                 """;
         List<Task> tasks = jdbcTemplate.query(sql, taskRowMapper, id);
         return tasks.stream().findFirst();
@@ -134,7 +136,19 @@ public class TaskRepository {
     }
 
     public boolean deleteById(Long id) {
-        int affectedRows = jdbcTemplate.update("DELETE FROM tasks WHERE id = ?", id);
+        int affectedRows = jdbcTemplate.update(
+                """
+                UPDATE tasks
+                SET is_deleted = 1,
+                    deleted_at = ?,
+                    updated_at = ?
+                WHERE id = ?
+                  AND is_deleted = 0
+                """,
+                formatDateTime(LocalDateTime.now()),
+                formatDateTime(LocalDateTime.now()),
+                id
+        );
         return affectedRows > 0;
     }
 

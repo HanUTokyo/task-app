@@ -2,6 +2,8 @@ package com.taskapp.backend.controller;
 
 import com.taskapp.backend.dto.ApiResponse;
 import com.taskapp.backend.dto.TaskCreateRequest;
+import com.taskapp.backend.dto.TaskNoteCreateRequest;
+import com.taskapp.backend.dto.TaskNoteResponse;
 import com.taskapp.backend.dto.TaskResponse;
 import com.taskapp.backend.dto.TaskUpdateRequest;
 import com.taskapp.backend.service.TaskService;
@@ -66,5 +68,15 @@ public class TaskController {
     public ResponseEntity<ApiResponse<Void>> deleteTask(@PathVariable Long id) {
         taskService.deleteTask(id);
         return ResponseEntity.ok(ApiResponse.success("Task deleted successfully", null));
+    }
+
+    @PostMapping("/{id}/notes")
+    public ResponseEntity<ApiResponse<TaskNoteResponse>> addTaskNote(
+            @PathVariable Long id,
+            @Valid @RequestBody TaskNoteCreateRequest request
+    ) {
+        TaskNoteResponse createdNote = taskService.addTaskNote(id, request);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.success("Task note created successfully", createdNote));
     }
 }

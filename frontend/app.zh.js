@@ -1,4 +1,4 @@
-const API_BASE_URL = window.TASK_API_BASE_URL || "http://localhost:8080/api";
+const API_BASE_URL = window.TASK_API_BASE_URL || `${window.location.protocol}//${window.location.hostname || "localhost"}:8080/api`;
 const TASKS_API_URL = `${API_BASE_URL}/tasks`;
 
 const state = {
@@ -18,15 +18,27 @@ let pendingAddPhaseTaskId = null;
 let editingPhaseTaskId = null;
 let pendingEditPhaseTaskId = null;
 let pendingEditPhaseIndex = null;
+let addingNoteTaskId = null;
+let pendingAddNoteTaskId = null;
 let currentPhases = [];
+let detailTaskId = null;
+const detailPreviewState = {
+  recentDecisions: false,
+  recentExperiments: false,
+  knowledgeHighlights: false
+};
 
 const elements = {
   taskModal: document.getElementById("taskModal"),
   confirmModal: document.getElementById("confirmModal"),
   addPhaseModal: document.getElementById("addPhaseModal"),
   editPhaseModal: document.getElementById("editPhaseModal"),
+  addNoteModal: document.getElementById("addNoteModal"),
+  detailDrawerBackdrop: document.getElementById("detailDrawerBackdrop"),
+  detailDrawer: document.getElementById("detailDrawer"),
   openTaskModalBtn: document.getElementById("openTaskModalBtn"),
   closeTaskModalBtn: document.getElementById("closeTaskModalBtn"),
+  closeDetailDrawerBtn: document.getElementById("closeDetailDrawerBtn"),
   confirmMessage: document.getElementById("confirmMessage"),
   confirmOkBtn: document.getElementById("confirmOkBtn"),
   confirmCancelBtn: document.getElementById("confirmCancelBtn"),
@@ -35,6 +47,7 @@ const elements = {
   addPhaseName: document.getElementById("addPhaseName"),
   addPhaseValidation: document.getElementById("addPhaseValidation"),
   addPhaseStatus: document.getElementById("addPhaseStatus"),
+  addPhaseDescription: document.getElementById("addPhaseDescription"),
   addPhaseCancelBtn: document.getElementById("addPhaseCancelBtn"),
   addPhaseConfirmBtn: document.getElementById("addPhaseConfirmBtn"),
   editPhaseForm: document.getElementById("editPhaseForm"),
@@ -42,8 +55,16 @@ const elements = {
   editPhaseName: document.getElementById("editPhaseName"),
   editPhaseValidation: document.getElementById("editPhaseValidation"),
   editPhaseStatus: document.getElementById("editPhaseStatus"),
+  editPhaseDescription: document.getElementById("editPhaseDescription"),
   editPhaseCancelBtn: document.getElementById("editPhaseCancelBtn"),
   editPhaseConfirmBtn: document.getElementById("editPhaseConfirmBtn"),
+  addNoteForm: document.getElementById("addNoteForm"),
+  addNoteModalTitle: document.getElementById("addNoteModalTitle"),
+  addNoteType: document.getElementById("addNoteType"),
+  addNoteContent: document.getElementById("addNoteContent"),
+  addNoteValidation: document.getElementById("addNoteValidation"),
+  addNoteCancelBtn: document.getElementById("addNoteCancelBtn"),
+  addNoteConfirmBtn: document.getElementById("addNoteConfirmBtn"),
   taskForm: document.getElementById("taskForm"),
   formTitle: document.getElementById("formTitle"),
   submitBtn: document.getElementById("submitBtn"),
@@ -67,7 +88,15 @@ const elements = {
   knowledgeHighlights: document.getElementById("knowledgeHighlights"),
   taskPriority: document.getElementById("taskPriority"),
   progressRankingList: document.getElementById("progressRankingList"),
-  recentUpdatedList: document.getElementById("recentUpdatedList")
+  recentUpdatedList: document.getElementById("recentUpdatedList"),
+  detailDrawerTitle: document.getElementById("detailDrawerTitle"),
+  detailMeta: document.getElementById("detailMeta"),
+  detailProgress: document.getElementById("detailProgress"),
+  detailPhases: document.getElementById("detailPhases"),
+  detailRecentDecisions: document.getElementById("detailRecentDecisions"),
+  detailRecentExperiments: document.getElementById("detailRecentExperiments"),
+  detailKnowledgeHighlights: document.getElementById("detailKnowledgeHighlights"),
+  knowledgeToggleButtons: Array.from(document.querySelectorAll(".knowledge-toggle-btn"))
 };
 
 document.addEventListener("DOMContentLoaded", init);
@@ -133,6 +162,34 @@ function bindEvents() {
     closeEditPhaseModal(true);
   });
 
+  elements.addNoteModal.addEventListener("click", (event) => {
+    if (event.target === elements.addNoteModal) {
+      closeAddNoteModal(true);
+    }
+  });
+
+  elements.addNoteCancelBtn.addEventListener("click", () => {
+    closeAddNoteModal(true);
+  });
+
+  elements.closeDetailDrawerBtn.addEventListener("click", () => {
+    closeDetailDrawer();
+  });
+
+  elements.detailDrawerBackdrop.addEventListener("click", () => {
+    closeDetailDrawer();
+  });
+
+  elements.knowledgeToggleButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      const sectionKey = button.dataset.previewSection;
+      if (!sectionKey) {
+        return;
+      }
+      toggleKnowledgePreview(sectionKey);
+    });
+  });
+
   elements.addPhaseForm.addEventListener("submit", handleAddPhaseSubmit);
   elements.addPhaseName.addEventListener("input", () => {
     validateAddPhaseForm();
@@ -147,6 +204,8 @@ function bindEvents() {
   elements.editPhaseStatus.addEventListener("change", () => {
     applySelectTone(elements.editPhaseStatus, "status");
   });
+  elements.addNoteForm.addEventListener("submit", handleAddNoteSubmit);
+  elements.addNoteContent.addEventListener("input", validateAddNoteForm);
 
   document.addEventListener("keydown", (event) => {
     if (event.key !== "Escape") {
@@ -168,8 +227,18 @@ function bindEvents() {
       return;
     }
 
+    if (isVisible(elements.addNoteModal)) {
+      closeAddNoteModal(true);
+      return;
+    }
+
     if (isVisible(elements.taskModal)) {
       closeTaskModal(true);
+      return;
+    }
+
+    if (isDetailDrawerVisible()) {
+      closeDetailDrawer();
     }
   });
 
@@ -259,8 +328,18 @@ function bindEvents() {
       return;
     }
 
+    if (action === "details") {
+      openDetailDrawer(taskId);
+      return;
+    }
+
     if (action === "add-phase") {
       openAddPhaseModal(taskId);
+      return;
+    }
+
+    if (action === "add-note") {
+      openAddNoteModal(taskId);
       return;
     }
 
@@ -306,14 +385,29 @@ function closeModal(modalElement) {
   modalElement.setAttribute("aria-hidden", "true");
   updateBodyModalState();
 
-  if (!isVisible(elements.taskModal) && !isVisible(elements.confirmModal) && !isVisible(elements.addPhaseModal) && !isVisible(elements.editPhaseModal) && lastFocusedElement) {
+  if (
+    !isVisible(elements.taskModal) &&
+    !isVisible(elements.confirmModal) &&
+    !isVisible(elements.addPhaseModal) &&
+    !isVisible(elements.editPhaseModal) &&
+    !isVisible(elements.addNoteModal) &&
+    !isDetailDrawerVisible() &&
+    lastFocusedElement
+  ) {
     lastFocusedElement.focus();
     lastFocusedElement = null;
   }
 }
 
 function updateBodyModalState() {
-  if (isVisible(elements.taskModal) || isVisible(elements.confirmModal) || isVisible(elements.addPhaseModal) || isVisible(elements.editPhaseModal)) {
+  if (
+    isVisible(elements.taskModal) ||
+    isVisible(elements.confirmModal) ||
+    isVisible(elements.addPhaseModal) ||
+    isVisible(elements.editPhaseModal) ||
+    isVisible(elements.addNoteModal) ||
+    isDetailDrawerVisible()
+  ) {
     document.body.classList.add("modal-open");
   } else {
     document.body.classList.remove("modal-open");
@@ -336,6 +430,7 @@ function openAddPhaseModal(taskId) {
   elements.addPhaseModalTitle.textContent = `为项目「${task.taskTitle}」新增阶段`;
   elements.addPhaseName.value = `阶段${phases.length + 1}`;
   elements.addPhaseStatus.value = "TODO";
+  elements.addPhaseDescription.value = "";
   applySelectTone(elements.addPhaseStatus, "status");
   validateAddPhaseForm();
   openModal(elements.addPhaseModal, elements.addPhaseName);
@@ -353,6 +448,7 @@ function resetAddPhaseForm() {
   elements.addPhaseModalTitle.textContent = "新增阶段";
   elements.addPhaseForm.reset();
   elements.addPhaseStatus.value = "TODO";
+  elements.addPhaseDescription.value = "";
   applySelectTone(elements.addPhaseStatus, "status");
   setAddPhaseValidation("", true);
 }
@@ -384,6 +480,7 @@ function openEditPhaseModal(taskId, phaseIndex) {
   elements.editPhaseModalTitle.textContent = `编辑项目「${task.taskTitle}」阶段`;
   elements.editPhaseName.value = phase.phaseName;
   elements.editPhaseStatus.value = phase.phaseStatus;
+  elements.editPhaseDescription.value = phase.phaseDescription || "";
   applySelectTone(elements.editPhaseStatus, "status");
   validateEditPhaseForm();
   openModal(elements.editPhaseModal, elements.editPhaseName);
@@ -402,8 +499,44 @@ function resetEditPhaseForm() {
   elements.editPhaseModalTitle.textContent = "编辑阶段";
   elements.editPhaseForm.reset();
   elements.editPhaseStatus.value = "TODO";
+  elements.editPhaseDescription.value = "";
   applySelectTone(elements.editPhaseStatus, "status");
   setEditPhaseValidation("", true);
+}
+
+function openAddNoteModal(taskId) {
+  if (deletingTaskId !== null || addingNoteTaskId !== null) {
+    return;
+  }
+
+  const task = tasks.find((item) => item.id === taskId);
+  if (!task) {
+    showToast("未找到项目", true);
+    return;
+  }
+
+  pendingAddNoteTaskId = taskId;
+  elements.addNoteModalTitle.textContent = `为项目「${task.taskTitle}」添加笔记`;
+  elements.addNoteType.value = "RECENT_DECISIONS";
+  elements.addNoteContent.value = "";
+  setAddNoteValidation("", true);
+  openModal(elements.addNoteModal, elements.addNoteContent);
+}
+
+function closeAddNoteModal(shouldReset) {
+  closeModal(elements.addNoteModal);
+  if (shouldReset) {
+    resetAddNoteForm();
+  }
+}
+
+function resetAddNoteForm() {
+  pendingAddNoteTaskId = null;
+  elements.addNoteModalTitle.textContent = "添加笔记";
+  elements.addNoteForm.reset();
+  elements.addNoteType.value = "RECENT_DECISIONS";
+  elements.addNoteContent.value = "";
+  setAddNoteValidation("", true);
 }
 
 function isVisible(element) {
@@ -459,6 +592,7 @@ async function loadTasks() {
     renderTable();
     renderStats();
     renderDashboards();
+    refreshDetailDrawerIfNeeded();
   } catch (error) {
     showToast(error.message, true);
   }
@@ -479,7 +613,7 @@ function renderTable() {
 
       return `
         <tr>
-          <td>
+          <td data-label="项目">
             <div class="project-title">
               ${isStuckProject(task) ? `<span class="stuck-indicator" title="该项目超过30天未更新" aria-label="卡住项目">⚠</span>` : ""}
               ${escapeHtml(task.taskTitle || "未命名项目")}
@@ -488,16 +622,21 @@ function renderTable() {
               <span class="priority-badge priority-${resolvePriority(task.priority).toLowerCase()}">${formatPriorityLabel(task.priority)}</span>
             </div>
             <div class="project-desc">${escapeHtml(task.taskDescription || "（无项目描述）")}</div>
+            ${renderTaskNotes(task.notes)}
           </td>
-          <td>${renderPhaseChips(task.id, phases)}</td>
-          <td>${renderProgressBar(task.overallProgress)}</td>
-          <td>${formatDate(task.createdAt)}</td>
-          <td>${formatDate(task.updatedAt)}</td>
-          <td>
+          <td data-label="阶段">${renderPhaseChips(task.id, phases)}</td>
+          <td data-label="进度">${renderProgressBar(task.overallProgress)}</td>
+          <td data-label="创建日期">${formatDate(task.createdAt)}</td>
+          <td data-label="更新日期">${formatDate(task.updatedAt)}</td>
+          <td data-label="操作">
             <div class="table-actions">
               <button class="btn btn-secondary" data-action="edit" data-id="${task.id}">编辑</button>
+              <button class="btn btn-secondary" data-action="details" data-id="${task.id}">详情</button>
               <button class="btn btn-secondary" data-action="add-phase" data-id="${task.id}" ${addingPhaseTaskId === task.id ? "disabled" : ""}>
                 ${addingPhaseTaskId === task.id ? "新增中..." : "新增阶段"}
+              </button>
+              <button class="btn btn-secondary" data-action="add-note" data-id="${task.id}" ${addingNoteTaskId === task.id ? "disabled" : ""}>
+                ${addingNoteTaskId === task.id ? "添加中..." : "添加笔记"}
               </button>
               <button
                 class="btn btn-danger ${deletingTaskId === task.id ? "delete-loading" : ""}"
@@ -623,15 +762,18 @@ function renderPhaseInputs() {
       const showRemove = index >= 3;
       return `
         <div class="phase-item" data-index="${index}">
-          <input class="phase-name" type="text" maxlength="100" value="${escapeHtml(phase.phaseName)}" placeholder="阶段名称" />
-          <select class="phase-status status-select ${getStatusSelectClass(phase.phaseStatus)}">
-            <option value="TODO" ${phase.phaseStatus === "TODO" ? "selected" : ""}>待开始</option>
-            <option value="DOING" ${phase.phaseStatus === "DOING" ? "selected" : ""}>进行中</option>
-            <option value="DONE" ${phase.phaseStatus === "DONE" ? "selected" : ""}>已完成</option>
-          </select>
-          ${showRemove
-            ? `<button type="button" class="btn btn-danger" data-remove-index="${index}">移除</button>`
-            : `<span class="phase-default-tag">默认阶段</span>`}
+          <div class="phase-item-top">
+            <input class="phase-name" type="text" maxlength="100" value="${escapeHtml(phase.phaseName)}" placeholder="阶段名称" />
+            <select class="phase-status status-select ${getStatusSelectClass(phase.phaseStatus)}">
+              <option value="TODO" ${phase.phaseStatus === "TODO" ? "selected" : ""}>待开始</option>
+              <option value="DOING" ${phase.phaseStatus === "DOING" ? "selected" : ""}>进行中</option>
+              <option value="DONE" ${phase.phaseStatus === "DONE" ? "selected" : ""}>已完成</option>
+            </select>
+            ${showRemove
+              ? `<button type="button" class="btn btn-danger" data-remove-index="${index}">移除</button>`
+              : `<span class="phase-default-tag">默认阶段</span>`}
+          </div>
+          <textarea class="phase-description" maxlength="2000" placeholder="阶段说明（可选）">${escapeHtml(phase.phaseDescription || "")}</textarea>
         </div>
       `;
     })
@@ -646,9 +788,11 @@ function collectPhasesFromDom() {
   const phases = Array.from(phaseItems).map((item, index) => {
     const nameInput = item.querySelector(".phase-name");
     const statusSelect = item.querySelector(".phase-status");
+    const descriptionInput = item.querySelector(".phase-description");
 
     return {
       phaseName: (nameInput?.value || "").trim() || `阶段${index + 1}`,
+      phaseDescription: (descriptionInput?.value || "").trim(),
       phaseStatus: statusSelect?.value || "TODO"
     };
   });
@@ -661,6 +805,7 @@ function normalizePhaseList(phases) {
     const status = ["TODO", "DOING", "DONE"].includes(phase.phaseStatus) ? phase.phaseStatus : "TODO";
     return {
       phaseName: (phase.phaseName || "").trim() || `阶段${index + 1}`,
+      phaseDescription: (phase.phaseDescription || "").trim(),
       phaseStatus: status,
       sortOrder: index + 1
     };
@@ -687,6 +832,7 @@ function buildDefaultPhases() {
 function createPhaseTemplate(index) {
   return {
     phaseName: `阶段${index}`,
+    phaseDescription: "",
     phaseStatus: "TODO",
     sortOrder: index
   };
@@ -695,6 +841,7 @@ function createPhaseTemplate(index) {
 function clonePhases(phases) {
   return phases.map((phase, index) => ({
     phaseName: phase.phaseName,
+    phaseDescription: phase.phaseDescription || "",
     phaseStatus: phase.phaseStatus,
     sortOrder: index + 1
   }));
@@ -768,9 +915,11 @@ async function handleAddPhaseSubmit(event) {
 
   const phaseName = elements.addPhaseName.value.trim();
   const phaseStatus = elements.addPhaseStatus.value;
+  const phaseDescription = elements.addPhaseDescription.value.trim();
   const phases = clonePhases(ensureTaskPhases(task));
   phases.push({
     phaseName,
+    phaseDescription,
     phaseStatus,
     sortOrder: phases.length + 1
   });
@@ -844,6 +993,7 @@ async function handleEditPhaseSubmit(event) {
   phases[phaseIndex] = {
     ...phases[phaseIndex],
     phaseName: elements.editPhaseName.value.trim(),
+    phaseDescription: elements.editPhaseDescription.value.trim(),
     phaseStatus: elements.editPhaseStatus.value,
     sortOrder: phaseIndex + 1
   };
@@ -882,6 +1032,48 @@ async function handleEditPhaseSubmit(event) {
   }
 }
 
+async function handleAddNoteSubmit(event) {
+  event.preventDefault();
+
+  if (pendingAddNoteTaskId === null || addingNoteTaskId !== null || deletingTaskId !== null) {
+    return;
+  }
+
+  if (!validateAddNoteForm()) {
+    elements.addNoteContent.focus();
+    return;
+  }
+
+  const taskId = pendingAddNoteTaskId;
+  const noteType = elements.addNoteType.value;
+  const noteContent = elements.addNoteContent.value.trim();
+
+  try {
+    addingNoteTaskId = taskId;
+    elements.addNoteConfirmBtn.disabled = true;
+
+    await request(`${TASKS_API_URL}/${taskId}/notes`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        noteType,
+        noteContent
+      })
+    });
+
+    closeAddNoteModal(true);
+    showToast("笔记添加成功");
+    await loadTasks();
+  } catch (error) {
+    showToast(error.message, true);
+  } finally {
+    addingNoteTaskId = null;
+    elements.addNoteConfirmBtn.disabled = false;
+  }
+}
+
 function validateAddPhaseForm() {
   const phaseName = elements.addPhaseName.value.trim();
   if (!phaseName) {
@@ -903,6 +1095,23 @@ function validateAddPhaseForm() {
 
   setAddPhaseValidation("", true);
   return true;
+}
+
+function validateAddNoteForm() {
+  const content = elements.addNoteContent.value.trim();
+  if (!content) {
+    setAddNoteValidation("笔记内容不能为空", false);
+    return false;
+  }
+  setAddNoteValidation("", true);
+  return true;
+}
+
+function setAddNoteValidation(message, isValid) {
+  elements.addNoteValidation.textContent = message;
+  elements.addNoteValidation.classList.toggle("hidden", isValid);
+  elements.addNoteConfirmBtn.disabled = !isValid;
+  elements.addNoteContent.classList.toggle("input-invalid", !isValid);
 }
 
 function setAddPhaseValidation(message, isValid) {
@@ -971,6 +1180,9 @@ async function removeTask(taskId) {
     if (editingTaskId === taskId) {
       closeTaskModal(true);
     }
+    if (detailTaskId === taskId) {
+      closeDetailDrawer();
+    }
 
     showToast("项目删除成功");
     await loadTasks();
@@ -1026,9 +1238,9 @@ function ensureTaskPhases(task) {
 
   // 兼容旧接口的固定三阶段字段
   const fallback = [
-    { phaseName: "阶段1", phaseStatus: task.phase1Status || "TODO" },
-    { phaseName: "阶段2", phaseStatus: task.phase2Status || "TODO" },
-    { phaseName: "阶段3", phaseStatus: task.phase3Status || "TODO" }
+    { phaseName: "阶段1", phaseDescription: "", phaseStatus: task.phase1Status || "TODO" },
+    { phaseName: "阶段2", phaseDescription: "", phaseStatus: task.phase2Status || "TODO" },
+    { phaseName: "阶段3", phaseDescription: "", phaseStatus: task.phase3Status || "TODO" }
   ];
   return normalizePhaseList(fallback);
 }
@@ -1039,6 +1251,9 @@ function renderPhaseChips(taskId, phases) {
       const doingClass = phase.phaseStatus === "DOING" ? "phase-chip-doing" : "";
       const arrow = index < phases.length - 1 ? `<span class="phase-flow-arrow" aria-hidden="true">↓</span>` : "";
       const disabled = editingPhaseTaskId === taskId ? "disabled" : "";
+      const phaseTitle = phase.phaseDescription
+        ? `点击编辑阶段\n${phase.phaseDescription}`
+        : "点击编辑阶段";
       return `
         <div class="phase-flow-item">
           <button
@@ -1047,12 +1262,13 @@ function renderPhaseChips(taskId, phases) {
             data-action="edit-phase"
             data-id="${taskId}"
             data-phase-index="${index}"
-            title="点击编辑阶段"
+            title="${escapeHtml(phaseTitle)}"
             ${disabled}
           >
             <span class="phase-chip-name">${escapeHtml(phase.phaseName)}</span>
             ${renderStatus(phase.phaseStatus)}
           </button>
+          ${phase.phaseDescription ? `<p class="phase-chip-description">${escapeHtml(phase.phaseDescription)}</p>` : ""}
           ${arrow}
         </div>
       `;
@@ -1077,6 +1293,35 @@ function renderStatus(status) {
   const statusClass = classMap[status] || "status-todo";
   const statusLabel = labelMap[status] || status;
   return `<span class="status-pill ${statusClass}">${statusLabel}</span>`;
+}
+
+function renderTaskNotes(notes) {
+  if (!Array.isArray(notes) || !notes.length) {
+    return "";
+  }
+
+  const items = notes
+    .map((note) => `
+      <div class="project-note-item">
+        <div class="project-note-meta">
+          <span class="project-note-type">${formatNoteTypeLabel(note.noteType)}</span>
+          <span class="project-note-time">${formatDate(note.createdAt)}</span>
+        </div>
+        <p class="project-note-content">${escapeHtml(note.noteContent || "")}</p>
+      </div>
+    `)
+    .join("");
+
+  return `<div class="project-notes">${items}</div>`;
+}
+
+function formatNoteTypeLabel(noteType) {
+  const labelMap = {
+    RECENT_DECISIONS: "最近关键判断",
+    RECENT_EXPERIMENTS: "最近实验记录",
+    KNOWLEDGE_HIGHLIGHTS: "知识亮点"
+  };
+  return labelMap[noteType] || noteType || "笔记";
 }
 
 function renderProgressBar(progress, extraClass = "") {
@@ -1181,6 +1426,224 @@ function formatPriorityLabel(priority) {
     LOW: "低优先级"
   };
   return labelMap[normalized];
+}
+
+function isDetailDrawerVisible() {
+  return !elements.detailDrawer.classList.contains("hidden");
+}
+
+function openDetailDrawer(taskId) {
+  const task = tasks.find((item) => item.id === taskId);
+  if (!task) {
+    showToast("未找到项目", true);
+    return;
+  }
+
+  detailTaskId = taskId;
+  detailPreviewState.recentDecisions = false;
+  detailPreviewState.recentExperiments = false;
+  detailPreviewState.knowledgeHighlights = false;
+  renderDetailDrawer(task);
+
+  if (!lastFocusedElement && document.activeElement instanceof HTMLElement) {
+    lastFocusedElement = document.activeElement;
+  }
+
+  elements.detailDrawerBackdrop.classList.remove("hidden");
+  elements.detailDrawer.classList.remove("hidden");
+  elements.detailDrawer.setAttribute("aria-hidden", "false");
+  updateBodyModalState();
+  window.setTimeout(() => elements.closeDetailDrawerBtn.focus(), 0);
+}
+
+function closeDetailDrawer() {
+  detailTaskId = null;
+  elements.detailDrawerBackdrop.classList.add("hidden");
+  elements.detailDrawer.classList.add("hidden");
+  elements.detailDrawer.setAttribute("aria-hidden", "true");
+  updateBodyModalState();
+
+  if (
+    !isVisible(elements.taskModal) &&
+    !isVisible(elements.confirmModal) &&
+    !isVisible(elements.addPhaseModal) &&
+    !isVisible(elements.editPhaseModal) &&
+    !isVisible(elements.addNoteModal) &&
+    lastFocusedElement
+  ) {
+    lastFocusedElement.focus();
+    lastFocusedElement = null;
+  }
+}
+
+function refreshDetailDrawerIfNeeded() {
+  if (detailTaskId === null || !isDetailDrawerVisible()) {
+    return;
+  }
+
+  const task = tasks.find((item) => item.id === detailTaskId);
+  if (!task) {
+    closeDetailDrawer();
+    return;
+  }
+
+  renderDetailDrawer(task);
+}
+
+function renderDetailDrawer(task) {
+  const phases = ensureTaskPhases(task);
+  elements.detailDrawerTitle.textContent = `项目详情：${task.taskTitle || "未命名项目"}`;
+  elements.detailMeta.innerHTML = `
+    <div class="detail-meta-item"><span>优先度</span><strong>${formatPriorityLabel(task.priority)}</strong></div>
+    <div class="detail-meta-item"><span>创建日期</span><strong>${formatDate(task.createdAt)}</strong></div>
+    <div class="detail-meta-item"><span>更新日期</span><strong>${formatDate(task.updatedAt)}</strong></div>
+  `;
+  elements.detailProgress.innerHTML = `
+    <h4>总进度</h4>
+    ${renderProgressBar(task.overallProgress)}
+  `;
+  renderDetailPhases(phases);
+  renderKnowledgeSections(task);
+}
+
+function renderDetailPhases(phases) {
+  if (!phases.length) {
+    elements.detailPhases.innerHTML = "<p class=\"knowledge-empty\">暂无阶段</p>";
+    return;
+  }
+
+  const phaseItems = phases
+    .map((phase) => `
+      <div class="detail-phase-item">
+        <div class="detail-phase-main">
+          <span class="detail-phase-name">${escapeHtml(phase.phaseName)}</span>
+          ${renderStatus(phase.phaseStatus)}
+        </div>
+        ${phase.phaseDescription ? `<p class="detail-phase-description">${escapeHtml(phase.phaseDescription)}</p>` : ""}
+      </div>
+    `)
+    .join("");
+
+  elements.detailPhases.innerHTML = `
+    <h4>阶段列表</h4>
+    <div class="detail-phase-list">${phaseItems}</div>
+  `;
+}
+
+function renderKnowledgeSections(task) {
+  renderKnowledgeContent(elements.detailRecentDecisions, task.recentDecisions, detailPreviewState.recentDecisions);
+  renderKnowledgeContent(elements.detailRecentExperiments, task.recentExperiments, detailPreviewState.recentExperiments);
+  renderKnowledgeContent(elements.detailKnowledgeHighlights, task.knowledgeHighlights, detailPreviewState.knowledgeHighlights);
+  refreshKnowledgeToggleButtons();
+}
+
+function toggleKnowledgePreview(sectionKey) {
+  if (!(sectionKey in detailPreviewState)) {
+    return;
+  }
+  detailPreviewState[sectionKey] = !detailPreviewState[sectionKey];
+  refreshDetailDrawerIfNeeded();
+}
+
+function refreshKnowledgeToggleButtons() {
+  elements.knowledgeToggleButtons.forEach((button) => {
+    const sectionKey = button.dataset.previewSection;
+    const isPreview = Boolean(sectionKey && detailPreviewState[sectionKey]);
+    button.textContent = isPreview ? "原文" : "预览";
+    button.classList.toggle("preview-active", isPreview);
+  });
+}
+
+function renderKnowledgeContent(container, text, isPreview) {
+  const content = String(text || "").trim();
+  if (!content) {
+    container.innerHTML = "<p class=\"knowledge-empty\">暂无内容</p>";
+    return;
+  }
+
+  if (!isPreview) {
+    container.innerHTML = `<pre class="knowledge-raw">${escapeHtml(content)}</pre>`;
+    return;
+  }
+
+  container.innerHTML = `<div class="knowledge-markdown">${markdownToHtml(content)}</div>`;
+}
+
+function markdownToHtml(markdownText) {
+  const source = escapeHtml(String(markdownText || "").replace(/\r\n?/g, "\n"));
+  const lines = source.split("\n");
+  const htmlParts = [];
+  let inUl = false;
+  let inOl = false;
+
+  function closeLists() {
+    if (inUl) {
+      htmlParts.push("</ul>");
+      inUl = false;
+    }
+    if (inOl) {
+      htmlParts.push("</ol>");
+      inOl = false;
+    }
+  }
+
+  lines.forEach((rawLine) => {
+    const line = rawLine.trim();
+    if (!line) {
+      closeLists();
+      return;
+    }
+
+    const headingMatch = line.match(/^(#{1,3})\s+(.+)$/);
+    if (headingMatch) {
+      closeLists();
+      const level = headingMatch[1].length;
+      htmlParts.push(`<h${level}>${formatInlineMarkdown(headingMatch[2])}</h${level}>`);
+      return;
+    }
+
+    const ulMatch = line.match(/^[-*]\s+(.+)$/);
+    if (ulMatch) {
+      if (inOl) {
+        htmlParts.push("</ol>");
+        inOl = false;
+      }
+      if (!inUl) {
+        htmlParts.push("<ul>");
+        inUl = true;
+      }
+      htmlParts.push(`<li>${formatInlineMarkdown(ulMatch[1])}</li>`);
+      return;
+    }
+
+    const olMatch = line.match(/^\d+\.\s+(.+)$/);
+    if (olMatch) {
+      if (inUl) {
+        htmlParts.push("</ul>");
+        inUl = false;
+      }
+      if (!inOl) {
+        htmlParts.push("<ol>");
+        inOl = true;
+      }
+      htmlParts.push(`<li>${formatInlineMarkdown(olMatch[1])}</li>`);
+      return;
+    }
+
+    closeLists();
+    htmlParts.push(`<p>${formatInlineMarkdown(line)}</p>`);
+  });
+
+  closeLists();
+  return htmlParts.join("");
+}
+
+function formatInlineMarkdown(text) {
+  return String(text || "")
+    .replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, "<a href=\"$2\" target=\"_blank\" rel=\"noopener noreferrer\">$1</a>")
+    .replace(/`([^`]+)`/g, "<code>$1</code>")
+    .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+    .replace(/\*([^*]+)\*/g, "<em>$1</em>");
 }
 
 function isStuckProject(task) {
