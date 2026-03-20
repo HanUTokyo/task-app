@@ -20,3 +20,13 @@ logging:
   level:
     root: INFO
     com.taskapp.backend: INFO
+
+management:
+  endpoint:
+    health:
+      probes:
+        enabled: true
+  endpoints:
+    web:
+      exposure:
+        include: health,info

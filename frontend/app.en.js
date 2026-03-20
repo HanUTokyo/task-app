@@ -19,9 +19,12 @@ let editingPhaseTaskId = null;
 let pendingEditPhaseTaskId = null;
 let pendingEditPhaseIndex = null;
 let addingNoteTaskId = null;
+let editingNoteTaskId = null;
 let pendingAddNoteTaskId = null;
+let pendingEditNoteId = null;
 let currentPhases = [];
 let detailTaskId = null;
+const THEME_STORAGE_KEY = "task-app-theme";
 const detailPreviewState = {
   recentDecisions: false,
   recentExperiments: false,
@@ -36,6 +39,7 @@ const elements = {
   addNoteModal: document.getElementById("addNoteModal"),
   detailDrawerBackdrop: document.getElementById("detailDrawerBackdrop"),
   detailDrawer: document.getElementById("detailDrawer"),
+  themeToggleBtn: document.getElementById("themeToggleBtn"),
   openTaskModalBtn: document.getElementById("openTaskModalBtn"),
   closeTaskModalBtn: document.getElementById("closeTaskModalBtn"),
   closeDetailDrawerBtn: document.getElementById("closeDetailDrawerBtn"),
@@ -104,6 +108,7 @@ document.addEventListener("DOMContentLoaded", init);
 function init() {
   elements.sortBySelect.value = state.sortBy;
   elements.orderSelect.value = state.order;
+  initTheme();
   bindEvents();
   resetForm();
   applySelectTone(elements.taskPriority, "priority");
@@ -113,6 +118,10 @@ function init() {
 }
 
 function bindEvents() {
+  if (elements.themeToggleBtn) {
+    elements.themeToggleBtn.addEventListener("click", toggleTheme);
+  }
+
   elements.openTaskModalBtn.addEventListener("click", () => {
     resetForm();
     openTaskModal();
@@ -120,12 +129,6 @@ function bindEvents() {
 
   elements.closeTaskModalBtn.addEventListener("click", () => {
     closeTaskModal(true);
-  });
-
-  elements.taskModal.addEventListener("click", (event) => {
-    if (event.target === elements.taskModal) {
-      closeTaskModal(true);
-    }
   });
 
   elements.confirmModal.addEventListener("click", (event) => {
@@ -142,30 +145,12 @@ function bindEvents() {
     resolveConfirm(true);
   });
 
-  elements.addPhaseModal.addEventListener("click", (event) => {
-    if (event.target === elements.addPhaseModal) {
-      closeAddPhaseModal(true);
-    }
-  });
-
   elements.addPhaseCancelBtn.addEventListener("click", () => {
     closeAddPhaseModal(true);
   });
 
-  elements.editPhaseModal.addEventListener("click", (event) => {
-    if (event.target === elements.editPhaseModal) {
-      closeEditPhaseModal(true);
-    }
-  });
-
   elements.editPhaseCancelBtn.addEventListener("click", () => {
     closeEditPhaseModal(true);
-  });
-
-  elements.addNoteModal.addEventListener("click", (event) => {
-    if (event.target === elements.addNoteModal) {
-      closeAddNoteModal(true);
-    }
   });
 
   elements.addNoteCancelBtn.addEventListener("click", () => {
@@ -262,12 +247,12 @@ function bindEvents() {
       return;
     }
 
-    if (removeIndex < 3) {
-      showToast("The first three default phases cannot be removed", true);
+    currentPhases = collectPhasesFromDom();
+    if (currentPhases.length <= 1) {
+      showToast("At least one phase is required", true);
       return;
     }
 
-    currentPhases = collectPhasesFromDom();
     currentPhases.splice(removeIndex, 1);
     renderPhaseInputs();
   });
@@ -312,6 +297,16 @@ function bindEvents() {
   });
 
   elements.taskTableBody.addEventListener("click", async (event) => {
+    const noteItem = event.target.closest(".project-note-item[data-note-id][data-task-id]");
+    if (noteItem) {
+      const taskId = Number(noteItem.dataset.taskId);
+      const noteId = Number(noteItem.dataset.noteId);
+      if (taskId && noteId) {
+        openEditNoteModal(taskId, noteId);
+      }
+      return;
+    }
+
     const actionButton = event.target.closest("button[data-action]");
     if (!actionButton) {
       return;
@@ -505,7 +500,7 @@ function resetEditPhaseForm() {
 }
 
 function openAddNoteModal(taskId) {
-  if (deletingTaskId !== null || addingNoteTaskId !== null) {
+  if (deletingTaskId !== null || addingNoteTaskId !== null || editingNoteTaskId !== null) {
     return;
   }
 
@@ -516,9 +511,38 @@ function openAddNoteModal(taskId) {
   }
 
   pendingAddNoteTaskId = taskId;
+  pendingEditNoteId = null;
   elements.addNoteModalTitle.textContent = `Add note for project "${task.taskTitle}"`;
+  elements.addNoteConfirmBtn.textContent = "Add Note";
   elements.addNoteType.value = "RECENT_DECISIONS";
   elements.addNoteContent.value = "";
+  setAddNoteValidation("", true);
+  openModal(elements.addNoteModal, elements.addNoteContent);
+}
+
+function openEditNoteModal(taskId, noteId) {
+  if (deletingTaskId !== null || addingNoteTaskId !== null || editingNoteTaskId !== null) {
+    return;
+  }
+
+  const task = tasks.find((item) => item.id === taskId);
+  if (!task) {
+    showToast("Project not found", true);
+    return;
+  }
+
+  const note = (task.notes || []).find((item) => item.id === noteId);
+  if (!note) {
+    showToast("Note not found", true);
+    return;
+  }
+
+  pendingAddNoteTaskId = taskId;
+  pendingEditNoteId = noteId;
+  elements.addNoteModalTitle.textContent = `Edit note for project "${task.taskTitle}"`;
+  elements.addNoteConfirmBtn.textContent = "Save Note";
+  elements.addNoteType.value = note.noteType || "RECENT_DECISIONS";
+  elements.addNoteContent.value = note.noteContent || "";
   setAddNoteValidation("", true);
   openModal(elements.addNoteModal, elements.addNoteContent);
 }
@@ -532,8 +556,10 @@ function closeAddNoteModal(shouldReset) {
 
 function resetAddNoteForm() {
   pendingAddNoteTaskId = null;
+  pendingEditNoteId = null;
   elements.addNoteModalTitle.textContent = "Add Note";
   elements.addNoteForm.reset();
+  elements.addNoteConfirmBtn.textContent = "Add Note";
   elements.addNoteType.value = "RECENT_DECISIONS";
   elements.addNoteContent.value = "";
   setAddNoteValidation("", true);
@@ -622,7 +648,7 @@ function renderTable() {
               <span class="priority-badge priority-${resolvePriority(task.priority).toLowerCase()}">${formatPriorityLabel(task.priority)}</span>
             </div>
             <div class="project-desc">${escapeHtml(task.taskDescription || "(No description)")}</div>
-            ${renderTaskNotes(task.notes)}
+            ${renderTaskNotes(task.id, task.notes)}
           </td>
           <td data-label="Phases">${renderPhaseChips(task.id, phases)}</td>
           <td data-label="Progress">${renderProgressBar(task.overallProgress)}</td>
@@ -635,8 +661,8 @@ function renderTable() {
               <button class="btn btn-secondary" data-action="add-phase" data-id="${task.id}" ${addingPhaseTaskId === task.id ? "disabled" : ""}>
                 ${addingPhaseTaskId === task.id ? "Adding..." : "Add Phase"}
               </button>
-              <button class="btn btn-secondary" data-action="add-note" data-id="${task.id}" ${addingNoteTaskId === task.id ? "disabled" : ""}>
-                ${addingNoteTaskId === task.id ? "Adding..." : "Add Note"}
+              <button class="btn btn-secondary" data-action="add-note" data-id="${task.id}" ${(addingNoteTaskId === task.id || editingNoteTaskId === task.id) ? "disabled" : ""}>
+                ${(addingNoteTaskId === task.id || editingNoteTaskId === task.id) ? "Processing..." : "Add Note"}
               </button>
               <button
                 class="btn btn-danger ${deletingTaskId === task.id ? "delete-loading" : ""}"
@@ -759,11 +785,11 @@ function resetForm() {
 function renderPhaseInputs() {
   const html = currentPhases
     .map((phase, index) => {
-      const showRemove = index >= 3;
+      const showRemove = currentPhases.length > 1;
       return `
         <div class="phase-item" data-index="${index}">
           <div class="phase-item-top">
-            <input class="phase-name" type="text" maxlength="100" value="${escapeHtml(phase.phaseName)}" placeholder="Phase Name" />
+            <input class="phase-name" type="text" maxlength="100" value="${escapeHtml(phase.phaseName)}" placeholder="e.g. Phase ${index + 1}" />
             <select class="phase-status status-select ${getStatusSelectClass(phase.phaseStatus)}">
               <option value="TODO" ${phase.phaseStatus === "TODO" ? "selected" : ""}>TODO</option>
               <option value="DOING" ${phase.phaseStatus === "DOING" ? "selected" : ""}>DOING</option>
@@ -771,7 +797,7 @@ function renderPhaseInputs() {
             </select>
             ${showRemove
               ? `<button type="button" class="btn btn-danger" data-remove-index="${index}">Remove</button>`
-              : `<span class="phase-default-tag">Default Phase</span>`}
+              : `<span class="phase-default-tag">At least 1 phase required</span>`}
           </div>
           <textarea class="phase-description" maxlength="2000" placeholder="Phase Description (optional)">${escapeHtml(phase.phaseDescription || "")}</textarea>
         </div>
@@ -811,7 +837,7 @@ function normalizePhaseList(phases) {
     };
   });
 
-  while (normalized.length < 3) {
+  while (normalized.length < 1) {
     normalized.push(createPhaseTemplate(normalized.length + 1));
   }
 
@@ -823,15 +849,13 @@ function normalizePhaseList(phases) {
 
 function buildDefaultPhases() {
   return [
-    createPhaseTemplate(1),
-    createPhaseTemplate(2),
-    createPhaseTemplate(3)
+    createPhaseTemplate(1)
   ];
 }
 
 function createPhaseTemplate(index) {
   return {
-    phaseName: `Phase ${index}`,
+    phaseName: "",
     phaseDescription: "",
     phaseStatus: "TODO",
     sortOrder: index
@@ -1035,7 +1059,12 @@ async function handleEditPhaseSubmit(event) {
 async function handleAddNoteSubmit(event) {
   event.preventDefault();
 
-  if (pendingAddNoteTaskId === null || addingNoteTaskId !== null || deletingTaskId !== null) {
+  if (
+    pendingAddNoteTaskId === null ||
+    addingNoteTaskId !== null ||
+    editingNoteTaskId !== null ||
+    deletingTaskId !== null
+  ) {
     return;
   }
 
@@ -1047,13 +1076,22 @@ async function handleAddNoteSubmit(event) {
   const taskId = pendingAddNoteTaskId;
   const noteType = elements.addNoteType.value;
   const noteContent = elements.addNoteContent.value.trim();
+  const editingNote = pendingEditNoteId !== null;
+  const requestUrl = editingNote
+    ? `${TASKS_API_URL}/${taskId}/notes/${pendingEditNoteId}`
+    : `${TASKS_API_URL}/${taskId}/notes`;
+  const requestMethod = editingNote ? "PUT" : "POST";
 
   try {
-    addingNoteTaskId = taskId;
+    if (editingNote) {
+      editingNoteTaskId = taskId;
+    } else {
+      addingNoteTaskId = taskId;
+    }
     elements.addNoteConfirmBtn.disabled = true;
 
-    await request(`${TASKS_API_URL}/${taskId}/notes`, {
-      method: "POST",
+    await request(requestUrl, {
+      method: requestMethod,
       headers: {
         "Content-Type": "application/json"
       },
@@ -1064,12 +1102,13 @@ async function handleAddNoteSubmit(event) {
     });
 
     closeAddNoteModal(true);
-    showToast("Note added successfully");
+    showToast(editingNote ? "Note updated successfully" : "Note added successfully");
     await loadTasks();
   } catch (error) {
     showToast(error.message, true);
   } finally {
     addingNoteTaskId = null;
+    editingNoteTaskId = null;
     elements.addNoteConfirmBtn.disabled = false;
   }
 }
@@ -1213,6 +1252,9 @@ function localizeMessage(message) {
   if (message.startsWith("Task not found with id")) {
     return "Project not found";
   }
+  if (message.startsWith("Task note not found with id")) {
+    return "Note not found";
+  }
   if (message === "Validation failed") {
     return "Validation failed";
   }
@@ -1295,17 +1337,22 @@ function renderStatus(status) {
   return `<span class="status-pill ${statusClass}">${statusLabel}</span>`;
 }
 
-function renderTaskNotes(notes) {
+function renderTaskNotes(taskId, notes) {
   if (!Array.isArray(notes) || !notes.length) {
     return "";
   }
 
   const items = notes
     .map((note) => `
-      <div class="project-note-item">
+      <div
+        class="project-note-item"
+        data-task-id="${taskId}"
+        data-note-id="${note.id}"
+        title="Click to edit note"
+      >
         <div class="project-note-meta">
           <span class="project-note-type">${formatNoteTypeLabel(note.noteType)}</span>
-          <span class="project-note-time">${formatDate(note.createdAt)}</span>
+          <span class="project-note-time">${formatDate(note.updatedAt || note.createdAt)}</span>
         </div>
         <p class="project-note-content">${escapeHtml(note.noteContent || "")}</p>
       </div>
@@ -1677,4 +1724,39 @@ function showToast(message, isError = false) {
   showToast.timer = window.setTimeout(() => {
     elements.toast.classList.add("hidden");
   }, 2200);
+}
+
+function initTheme() {
+  let storedTheme = null;
+  try {
+    storedTheme = window.localStorage.getItem(THEME_STORAGE_KEY);
+  } catch (error) {
+    storedTheme = null;
+  }
+
+  const prefersDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+  const initialTheme = storedTheme === "dark" || storedTheme === "light"
+    ? storedTheme
+    : (prefersDark ? "dark" : "light");
+  applyTheme(initialTheme, false);
+}
+
+function toggleTheme() {
+  const currentTheme = document.documentElement.getAttribute("data-theme") === "dark" ? "dark" : "light";
+  applyTheme(currentTheme === "dark" ? "light" : "dark", true);
+}
+
+function applyTheme(theme, persist) {
+  document.documentElement.setAttribute("data-theme", theme);
+  if (elements.themeToggleBtn) {
+    elements.themeToggleBtn.textContent = theme === "dark" ? "Light Mode" : "Dark Mode";
+  }
+
+  if (persist) {
+    try {
+      window.localStorage.setItem(THEME_STORAGE_KEY, theme);
+    } catch (error) {
+      // Ignore storage failures in private mode.
+    }
+  }
 }

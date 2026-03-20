@@ -79,4 +79,14 @@ public class TaskController {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success("Task note created successfully", createdNote));
     }
+
+    @PutMapping("/{id}/notes/{noteId}")
+    public ResponseEntity<ApiResponse<TaskNoteResponse>> updateTaskNote(
+            @PathVariable Long id,
+            @PathVariable Long noteId,
+            @Valid @RequestBody TaskNoteCreateRequest request
+    ) {
+        TaskNoteResponse updatedNote = taskService.updateTaskNote(id, noteId, request);
+        return ResponseEntity.ok(ApiResponse.success("Task note updated successfully", updatedNote));
+    }
 }

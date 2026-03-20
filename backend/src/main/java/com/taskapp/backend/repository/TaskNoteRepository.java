@@ -15,6 +15,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 @Repository
 public class TaskNoteRepository {
@@ -96,6 +97,44 @@ public class TaskNoteRepository {
                 taskId
         );
         return rows.getFirst();
+    }
+
+    public TaskNote update(Long noteId, Long taskId, NoteType noteType, String noteContent, LocalDateTime now) {
+        String sql = """
+                UPDATE task_notes
+                SET note_type = ?, note_content = ?, updated_at = ?
+                WHERE id = ? AND task_id = ?
+                """;
+        int affectedRows = jdbcTemplate.update(
+                sql,
+                noteType.name(),
+                normalizeText(noteContent),
+                formatDateTime(now),
+                noteId,
+                taskId
+        );
+        if (affectedRows <= 0) {
+            return null;
+        }
+        return findByIdAndTaskId(noteId, taskId).orElse(null);
+    }
+
+    public Optional<TaskNote> findByIdAndTaskId(Long noteId, Long taskId) {
+        List<TaskNote> rows = jdbcTemplate.query(
+                """
+                SELECT id, task_id, note_type, note_content, created_at, updated_at
+                FROM task_notes
+                WHERE id = ? AND task_id = ?
+                LIMIT 1
+                """,
+                noteRowMapper,
+                noteId,
+                taskId
+        );
+        if (rows.isEmpty()) {
+            return Optional.empty();
+        }
+        return Optional.of(rows.getFirst());
     }
 
     private String normalizeText(String text) {

@@ -7,6 +7,7 @@ import com.taskapp.backend.dto.TaskNoteCreateRequest;
 import com.taskapp.backend.dto.TaskNoteResponse;
 import com.taskapp.backend.dto.TaskResponse;
 import com.taskapp.backend.dto.TaskUpdateRequest;
+import com.taskapp.backend.exception.TaskNoteNotFoundException;
 import com.taskapp.backend.exception.TaskNotFoundException;
 import com.taskapp.backend.model.PhaseStatus;
 import com.taskapp.backend.model.ProjectPriority;
@@ -31,7 +32,7 @@ import java.util.Map;
 @Service
 public class TaskService {
 
-    private static final int DEFAULT_PHASE_COUNT = 3;
+    private static final int DEFAULT_PHASE_COUNT = 1;
 
     private final TaskRepository taskRepository;
     private final TaskPhaseRepository taskPhaseRepository;
@@ -159,6 +160,24 @@ public class TaskService {
                 now
         );
         return toNoteResponse(saved);
+    }
+
+    public TaskNoteResponse updateTaskNote(Long taskId, Long noteId, TaskNoteCreateRequest request) {
+        taskRepository.findById(taskId)
+                .orElseThrow(() -> new TaskNotFoundException(taskId));
+
+        LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
+        TaskNote updated = taskNoteRepository.update(
+                noteId,
+                taskId,
+                request.getNoteType(),
+                request.getNoteContent(),
+                now
+        );
+        if (updated == null) {
+            throw new TaskNoteNotFoundException(taskId, noteId);
+        }
+        return toNoteResponse(updated);
     }
 
     private List<TaskPhase> normalizePhases(List<PhaseRequest> phaseRequests) {

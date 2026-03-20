@@ -13,7 +13,10 @@
         <h1>Project Progress Management</h1>
         <p>Manage projects with dynamic phases, search, sorting, and knowledge notes.</p>
       </div>
-      <a class="btn btn-secondary lang-switch-btn" href="zh.html">Switch to Chinese</a>
+      <div class="header-actions">
+        <button id="themeToggleBtn" class="btn btn-secondary" type="button">Dark Mode</button>
+        <a class="btn btn-secondary lang-switch-btn" href="zh.html">Switch to Chinese</a>
+      </div>
     </header>
 
     <section class="stats-grid" id="statsGrid">
@@ -60,7 +63,7 @@
         </div>
 
         <div class="table-wrap">
-          <table>
+          <table class="task-table">
             <thead>
               <tr>
                 <th>Project</th>
@@ -272,6 +275,9 @@
   </aside>
 
   <div id="toast" class="toast hidden"></div>
+  <script>
+    window.TASK_API_BASE_URL = "/task-app/api";
+  </script>
   <script src="app.en.js"></script>
 </body>
 </html>

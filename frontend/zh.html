@@ -13,7 +13,10 @@
         <h1>项目进度管理系统</h1>
         <p>支持项目增删改查、动态阶段管理、搜索与排序。</p>
       </div>
-      <a class="btn btn-secondary lang-switch-btn" href="index.html">切换英文</a>
+      <div class="header-actions">
+        <button id="themeToggleBtn" class="btn btn-secondary" type="button">深色模式</button>
+        <a class="btn btn-secondary lang-switch-btn" href="index.html">切换英文</a>
+      </div>
     </header>
 
     <section class="stats-grid" id="statsGrid">
@@ -60,7 +63,7 @@
         </div>
 
         <div class="table-wrap">
-          <table>
+          <table class="task-table">
             <thead>
               <tr>
                 <th>项目</th>
@@ -272,6 +275,9 @@
   </aside>
 
   <div id="toast" class="toast hidden"></div>
+  <script>
+    window.TASK_API_BASE_URL = "/task-app/api";
+  </script>
   <script src="app.zh.js"></script>
 </body>
 </html>

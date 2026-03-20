@@ -52,6 +52,13 @@ body {
   color: var(--muted);
 }
 
+.header-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -321,6 +328,37 @@ table {
   min-width: 1100px;
 }
 
+.task-table {
+  table-layout: fixed;
+}
+
+.task-table th:nth-child(1),
+.task-table td:nth-child(1),
+.task-table th:nth-child(2),
+.task-table td:nth-child(2) {
+  width: 24%;
+}
+
+.task-table th:nth-child(3),
+.task-table td:nth-child(3) {
+  width: 12%;
+}
+
+.task-table th:nth-child(4),
+.task-table td:nth-child(4) {
+  width: 13%;
+}
+
+.task-table th:nth-child(5),
+.task-table td:nth-child(5) {
+  width: 13%;
+}
+
+.task-table th:nth-child(6),
+.task-table td:nth-child(6) {
+  width: 14%;
+}
+
 th,
 td {
   border-bottom: none;
@@ -409,7 +447,7 @@ tbody tr:hover td {
   color: var(--muted);
   font-size: 12px;
   line-height: 1.5;
-  max-width: 420px;
+  max-width: 100%;
   word-break: break-word;
 }
 
@@ -417,8 +455,8 @@ tbody tr:hover td {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  min-width: 190px;
-  max-width: 280px;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .phase-flow-item {
@@ -578,6 +616,14 @@ tbody tr:hover td {
   border-radius: 10px;
   padding: 7px 9px;
   background: linear-gradient(180deg, #f9fcff, #f4f9ff);
+  cursor: pointer;
+  transition: border-color 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease;
+}
+
+.project-note-item:hover {
+  border-color: #90a7c4;
+  box-shadow: 0 6px 14px rgba(15, 23, 42, 0.12);
+  transform: translateY(-1px);
 }
 
 .project-note-meta {
@@ -645,6 +691,12 @@ tbody tr:hover td {
 .phase-description {
   min-height: 84px;
   font-size: 13px;
+}
+
+.phase-name::placeholder,
+.phase-description::placeholder {
+  color: #94a3b8;
+  opacity: 1;
 }
 
 .phase-default-tag {
@@ -1043,6 +1095,126 @@ body.modal-open {
   background: #991b1b;
 }
 
+html[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0b1220;
+  --card: #111b2d;
+  --line: #2a3a55;
+  --text: #e5edf8;
+  --muted: #9db0c9;
+  --primary: #14b8a6;
+  --primary-dark: #0d9488;
+  --danger: #fca5a5;
+  --danger-bg: #3f1d2a;
+  --shadow: 0 16px 34px rgba(2, 6, 23, 0.45);
+  --shadow-soft: 0 8px 18px rgba(2, 6, 23, 0.35);
+}
+
+html[data-theme="dark"] body {
+  background:
+    radial-gradient(circle at 0% 0%, rgba(20, 184, 166, 0.16) 0, transparent 34%),
+    radial-gradient(circle at 100% 100%, rgba(59, 130, 246, 0.14) 0, transparent 38%),
+    linear-gradient(180deg, rgba(11, 18, 32, 0.95), rgba(11, 18, 32, 0.98)),
+    var(--bg);
+}
+
+html[data-theme="dark"] .panel,
+html[data-theme="dark"] .stat-card,
+html[data-theme="dark"] .table-wrap,
+html[data-theme="dark"] tbody td,
+html[data-theme="dark"] .phase-flow-item,
+html[data-theme="dark"] .project-note-item,
+html[data-theme="dark"] .detail-drawer,
+html[data-theme="dark"] .detail-progress,
+html[data-theme="dark"] .detail-phases,
+html[data-theme="dark"] .knowledge-section,
+html[data-theme="dark"] .detail-phase-item,
+html[data-theme="dark"] .detail-meta-item {
+  background: #0f1a2f;
+  border-color: #2a3a55;
+}
+
+html[data-theme="dark"] .dashboard-item {
+  background: #0f1a2f;
+  border-color: #2a3a55;
+}
+
+html[data-theme="dark"] th {
+  color: #9db0c9;
+}
+
+html[data-theme="dark"] tbody tr:hover td {
+  background: #13213a;
+}
+
+html[data-theme="dark"] tbody tr {
+  background: #0f1a2f;
+  border-color: #2a3a55;
+}
+
+html[data-theme="dark"] .btn-secondary {
+  border-color: #365072;
+  background: linear-gradient(180deg, #15243f, #101d34);
+  color: #dbe7f7;
+}
+
+html[data-theme="dark"] .btn-secondary:hover {
+  border-color: #4b6b92;
+  background: #172a49;
+}
+
+html[data-theme="dark"] input,
+html[data-theme="dark"] textarea,
+html[data-theme="dark"] select {
+  background: #0f1a2f;
+  border-color: #2a3a55;
+  color: #e5edf8;
+}
+
+html[data-theme="dark"] .phase-name::placeholder,
+html[data-theme="dark"] .phase-description::placeholder,
+html[data-theme="dark"] input::placeholder,
+html[data-theme="dark"] textarea::placeholder {
+  color: #7f94b3;
+}
+
+html[data-theme="dark"] .project-desc,
+html[data-theme="dark"] .phase-chip-description,
+html[data-theme="dark"] .project-note-content,
+html[data-theme="dark"] .detail-phase-name,
+html[data-theme="dark"] .detail-phase-description,
+html[data-theme="dark"] .knowledge-raw,
+html[data-theme="dark"] .knowledge-markdown p,
+html[data-theme="dark"] .knowledge-markdown ul,
+html[data-theme="dark"] .knowledge-markdown ol,
+html[data-theme="dark"] .dashboard-name,
+html[data-theme="dark"] .dashboard-value {
+  color: #c8d6ea;
+}
+
+html[data-theme="dark"] .knowledge-markdown h1,
+html[data-theme="dark"] .knowledge-markdown h2,
+html[data-theme="dark"] .knowledge-markdown h3,
+html[data-theme="dark"] .project-title,
+html[data-theme="dark"] .detail-drawer-header h3,
+html[data-theme="dark"] .page-header h1 {
+  color: #e5edf8;
+}
+
+html[data-theme="dark"] .knowledge-markdown code {
+  background: #1e2f4c;
+}
+
+html[data-theme="dark"] .knowledge-toggle-btn.preview-active {
+  border-color: #2dd4bf;
+  color: #99f6e4;
+  background: #16373a;
+}
+
+html[data-theme="dark"] .detail-drawer-backdrop {
+  background: rgba(2, 6, 23, 0.58);
+}
+
 @media (max-width: 1024px) {
   .dashboard-grid {
     grid-template-columns: 1fr;
@@ -1065,6 +1237,10 @@ body.modal-open {
 
   .page-header h1 {
     font-size: 26px;
+  }
+
+  .header-actions {
+    width: 100%;
   }
 
   .table-wrap {
