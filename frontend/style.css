@@ -325,7 +325,7 @@ table {
   width: 100%;
   border-collapse: separate;
   border-spacing: 0 8px;
-  min-width: 1100px;
+  min-width: 930px;
 }
 
 .task-table {
@@ -336,26 +336,16 @@ table {
 .task-table td:nth-child(1),
 .task-table th:nth-child(2),
 .task-table td:nth-child(2) {
-  width: 24%;
+  width: 33%;
 }
 
 .task-table th:nth-child(3),
 .task-table td:nth-child(3) {
-  width: 12%;
+  width: 20%;
 }
 
 .task-table th:nth-child(4),
 .task-table td:nth-child(4) {
-  width: 13%;
-}
-
-.task-table th:nth-child(5),
-.task-table td:nth-child(5) {
-  width: 13%;
-}
-
-.task-table th:nth-child(6),
-.task-table td:nth-child(6) {
   width: 14%;
 }
 
@@ -633,6 +623,12 @@ tbody tr:hover td {
   margin-bottom: 4px;
 }
 
+.project-note-meta-right {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .project-note-type {
   font-size: 11px;
   color: #0f766e;
@@ -644,6 +640,12 @@ tbody tr:hover td {
   color: #64748b;
 }
 
+.project-note-delete-btn {
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+}
+
 .project-note-content {
   margin: 0;
   font-size: 12px;
@@ -651,6 +653,30 @@ tbody tr:hover td {
   line-height: 1.5;
   white-space: pre-wrap;
   word-break: break-word;
+}
+
+.progress-date-stack {
+  display: grid;
+  gap: 6px;
+}
+
+.progress-date-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  border: 1px solid #dbe5ef;
+  border-radius: 8px;
+  padding: 5px 8px;
+  background: #f8fbff;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.progress-date-row strong {
+  color: #1f2937;
+  font-size: 12px;
+  font-weight: 700;
 }
 
 .phase-editor-head {
@@ -789,6 +815,10 @@ select.priority-select option[value="LOW"] {
   transition: opacity 0.2s ease;
 }
 
+#confirmModal {
+  z-index: 120;
+}
+
 .modal-overlay.hidden {
   opacity: 0;
   pointer-events: none;
@@ -804,7 +834,8 @@ select.priority-select option[value="LOW"] {
 
 .modal-overlay.hidden .modal-panel,
 .modal-overlay.hidden .confirm-panel,
-.modal-overlay.hidden .add-phase-panel {
+.modal-overlay.hidden .add-phase-panel,
+.modal-overlay.hidden .flash-note-panel {
   transform: translateY(8px);
 }
 
@@ -843,6 +874,19 @@ body.modal-open {
   transition: transform 0.2s ease;
 }
 
+.flash-note-panel {
+  width: min(560px, 100%);
+  max-height: calc(100vh - 40px);
+  overflow: auto;
+  padding: 20px;
+  transform: translateY(0);
+  transition: transform 0.2s ease;
+}
+
+#flashNoteContent {
+  min-height: 120px;
+}
+
 .confirm-panel h3 {
   margin: 0 0 8px;
 }
@@ -878,6 +922,60 @@ body.modal-open {
   display: flex;
   justify-content: flex-end;
   gap: 8px;
+}
+
+.flash-note-list {
+  margin-top: 12px;
+  max-height: min(44vh, 440px);
+  overflow: auto;
+  display: grid;
+  gap: 8px;
+  padding-right: 2px;
+}
+
+.flash-note-item {
+  border: 1px solid #d6e2f0;
+  border-radius: 12px;
+  background: linear-gradient(180deg, #f9fcff, #f2f8ff);
+  padding: 10px;
+}
+
+.flash-note-content {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.6;
+  color: #1f2937;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.flash-note-time {
+  margin: 8px 0 0;
+  font-size: 11px;
+  color: #64748b;
+}
+
+.flash-note-footer {
+  margin-top: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.flash-note-footer .flash-note-time {
+  margin: 0;
+}
+
+.flash-note-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.flash-note-actions .btn {
+  padding: 4px 10px;
+  font-size: 12px;
 }
 
 .empty-state {
@@ -1124,6 +1222,8 @@ html[data-theme="dark"] .table-wrap,
 html[data-theme="dark"] tbody td,
 html[data-theme="dark"] .phase-flow-item,
 html[data-theme="dark"] .project-note-item,
+html[data-theme="dark"] .flash-note-item,
+html[data-theme="dark"] .progress-date-row,
 html[data-theme="dark"] .detail-drawer,
 html[data-theme="dark"] .detail-progress,
 html[data-theme="dark"] .detail-phases,
@@ -1181,6 +1281,8 @@ html[data-theme="dark"] textarea::placeholder {
 html[data-theme="dark"] .project-desc,
 html[data-theme="dark"] .phase-chip-description,
 html[data-theme="dark"] .project-note-content,
+html[data-theme="dark"] .flash-note-content,
+html[data-theme="dark"] .progress-date-row strong,
 html[data-theme="dark"] .detail-phase-name,
 html[data-theme="dark"] .detail-phase-description,
 html[data-theme="dark"] .knowledge-raw,
@@ -1203,6 +1305,14 @@ html[data-theme="dark"] .page-header h1 {
 
 html[data-theme="dark"] .knowledge-markdown code {
   background: #1e2f4c;
+}
+
+html[data-theme="dark"] .flash-note-time {
+  color: #9db0c9;
+}
+
+html[data-theme="dark"] .progress-date-row {
+  color: #9db0c9;
 }
 
 html[data-theme="dark"] .knowledge-toggle-btn.preview-active {

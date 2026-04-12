@@ -14,6 +14,7 @@
         <p>Manage projects with dynamic phases, search, sorting, and knowledge notes.</p>
       </div>
       <div class="header-actions">
+        <button id="openFlashNoteModalBtn" class="btn btn-secondary" type="button">Flash Notes</button>
         <button id="themeToggleBtn" class="btn btn-secondary" type="button">Dark Mode</button>
         <a class="btn btn-secondary lang-switch-btn" href="zh.html">Switch to Chinese</a>
       </div>
@@ -68,9 +69,7 @@
               <tr>
                 <th>Project</th>
                 <th>Phases</th>
-                <th>Progress</th>
-                <th>Created Date</th>
-                <th>Updated Date</th>
+                <th>Progress / Dates</th>
                 <th>Actions</th>
               </tr>
             </thead>
@@ -236,6 +235,27 @@
           <button id="addNoteConfirmBtn" type="submit" class="btn btn-primary">Add Note</button>
         </div>
       </form>
+    </div>
+  </div>
+
+  <div id="flashNoteModal" class="modal-overlay hidden" aria-hidden="true">
+    <div class="panel flash-note-panel" role="dialog" aria-modal="true" aria-labelledby="flashNoteModalTitle" aria-describedby="flashNoteModalDesc">
+      <div class="modal-header">
+        <h3 id="flashNoteModalTitle">Flash Notes</h3>
+        <button id="closeFlashNoteModalBtn" type="button" class="btn btn-secondary close-btn">Close</button>
+      </div>
+      <p id="flashNoteModalDesc">Capture quick thoughts independent from any specific project. You can add multiple notes continuously.</p>
+      <form id="flashNoteForm" class="add-phase-form" novalidate>
+        <label>
+          Note Content
+          <textarea id="flashNoteContent" maxlength="20000" required placeholder="e.g. Try splitting the phase board into team and personal views next week"></textarea>
+        </label>
+        <p id="flashNoteValidation" class="add-phase-validation hidden"></p>
+        <div class="confirm-actions">
+          <button id="flashNoteSubmitBtn" type="submit" class="btn btn-primary">Add Flash Note</button>
+        </div>
+      </form>
+      <div id="flashNoteList" class="flash-note-list"></div>
     </div>
   </div>
 

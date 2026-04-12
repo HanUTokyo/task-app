@@ -1,5 +1,6 @@
 const API_BASE_URL = window.TASK_API_BASE_URL || `${window.location.protocol}//${window.location.hostname || "localhost"}:8080/api`;
 const TASKS_API_URL = `${API_BASE_URL}/tasks`;
+const FLASH_NOTES_API_URL = `${API_BASE_URL}/flash-notes`;
 
 const state = {
   keyword: "",
@@ -24,6 +25,12 @@ let pendingAddNoteTaskId = null;
 let pendingEditNoteId = null;
 let currentPhases = [];
 let detailTaskId = null;
+let flashNotes = [];
+let flashNotesLoading = false;
+let addingFlashNote = false;
+let editingFlashNoteId = null;
+let deletingFlashNoteId = null;
+let deletingTaskNoteId = null;
 const THEME_STORAGE_KEY = "task-app-theme";
 const detailPreviewState = {
   recentDecisions: false,
@@ -39,7 +46,10 @@ const elements = {
   addNoteModal: document.getElementById("addNoteModal"),
   detailDrawerBackdrop: document.getElementById("detailDrawerBackdrop"),
   detailDrawer: document.getElementById("detailDrawer"),
+  flashNoteModal: document.getElementById("flashNoteModal"),
   themeToggleBtn: document.getElementById("themeToggleBtn"),
+  openFlashNoteModalBtn: document.getElementById("openFlashNoteModalBtn"),
+  closeFlashNoteModalBtn: document.getElementById("closeFlashNoteModalBtn"),
   openTaskModalBtn: document.getElementById("openTaskModalBtn"),
   closeTaskModalBtn: document.getElementById("closeTaskModalBtn"),
   closeDetailDrawerBtn: document.getElementById("closeDetailDrawerBtn"),
@@ -69,6 +79,11 @@ const elements = {
   addNoteValidation: document.getElementById("addNoteValidation"),
   addNoteCancelBtn: document.getElementById("addNoteCancelBtn"),
   addNoteConfirmBtn: document.getElementById("addNoteConfirmBtn"),
+  flashNoteForm: document.getElementById("flashNoteForm"),
+  flashNoteContent: document.getElementById("flashNoteContent"),
+  flashNoteValidation: document.getElementById("flashNoteValidation"),
+  flashNoteSubmitBtn: document.getElementById("flashNoteSubmitBtn"),
+  flashNoteList: document.getElementById("flashNoteList"),
   taskForm: document.getElementById("taskForm"),
   formTitle: document.getElementById("formTitle"),
   submitBtn: document.getElementById("submitBtn"),
@@ -122,6 +137,12 @@ function bindEvents() {
     elements.themeToggleBtn.addEventListener("click", toggleTheme);
   }
 
+  if (elements.openFlashNoteModalBtn) {
+    elements.openFlashNoteModalBtn.addEventListener("click", async () => {
+      await openFlashNoteModal();
+    });
+  }
+
   elements.openTaskModalBtn.addEventListener("click", () => {
     resetForm();
     openTaskModal();
@@ -155,6 +176,10 @@ function bindEvents() {
 
   elements.addNoteCancelBtn.addEventListener("click", () => {
     closeAddNoteModal(true);
+  });
+
+  elements.closeFlashNoteModalBtn.addEventListener("click", () => {
+    closeFlashNoteModal(true);
   });
 
   elements.closeDetailDrawerBtn.addEventListener("click", () => {
@@ -191,6 +216,31 @@ function bindEvents() {
   });
   elements.addNoteForm.addEventListener("submit", handleAddNoteSubmit);
   elements.addNoteContent.addEventListener("input", validateAddNoteForm);
+  elements.flashNoteForm.addEventListener("submit", handleFlashNoteSubmit);
+  elements.flashNoteContent.addEventListener("input", () => {
+    validateFlashNoteForm(false);
+  });
+  elements.flashNoteList.addEventListener("click", async (event) => {
+    const actionButton = event.target.closest("button[data-flash-action]");
+    if (!actionButton) {
+      return;
+    }
+
+    const action = actionButton.dataset.flashAction;
+    const noteId = Number(actionButton.dataset.flashNoteId);
+    if (!action || !noteId) {
+      return;
+    }
+
+    if (action === "edit") {
+      startEditingFlashNote(noteId);
+      return;
+    }
+
+    if (action === "delete") {
+      await removeFlashNote(noteId);
+    }
+  });
 
   document.addEventListener("keydown", (event) => {
     if (event.key !== "Escape") {
@@ -214,6 +264,10 @@ function bindEvents() {
 
     if (isVisible(elements.addNoteModal)) {
       closeAddNoteModal(true);
+      return;
+    }
+
+    if (isVisible(elements.flashNoteModal)) {
       return;
     }
 
@@ -297,6 +351,17 @@ function bindEvents() {
   });
 
   elements.taskTableBody.addEventListener("click", async (event) => {
+    const noteActionButton = event.target.closest("button[data-note-action][data-note-id][data-task-id]");
+    if (noteActionButton) {
+      const taskId = Number(noteActionButton.dataset.taskId);
+      const noteId = Number(noteActionButton.dataset.noteId);
+      const noteAction = noteActionButton.dataset.noteAction;
+      if (taskId && noteId && noteAction === "delete") {
+        await removeTaskNote(taskId, noteId);
+      }
+      return;
+    }
+
     const noteItem = event.target.closest(".project-note-item[data-note-id][data-task-id]");
     if (noteItem) {
       const taskId = Number(noteItem.dataset.taskId);
@@ -361,6 +426,27 @@ function closeTaskModal(shouldResetForm) {
   }
 }
 
+async function openFlashNoteModal() {
+  resetFlashNoteForm();
+  openModal(elements.flashNoteModal, elements.flashNoteContent);
+  await loadFlashNotes();
+}
+
+function closeFlashNoteModal(shouldResetForm) {
+  closeModal(elements.flashNoteModal);
+  if (shouldResetForm) {
+    resetFlashNoteForm();
+  }
+}
+
+function resetFlashNoteForm() {
+  editingFlashNoteId = null;
+  elements.flashNoteForm.reset();
+  elements.flashNoteContent.value = "";
+  elements.flashNoteSubmitBtn.textContent = "Add Flash Note";
+  setFlashNoteValidation("", true);
+}
+
 function openModal(modalElement, focusTarget) {
   if (!lastFocusedElement && document.activeElement instanceof HTMLElement) {
     lastFocusedElement = document.activeElement;
@@ -386,6 +472,7 @@ function closeModal(modalElement) {
     !isVisible(elements.addPhaseModal) &&
     !isVisible(elements.editPhaseModal) &&
     !isVisible(elements.addNoteModal) &&
+    !isVisible(elements.flashNoteModal) &&
     !isDetailDrawerVisible() &&
     lastFocusedElement
   ) {
@@ -401,6 +488,7 @@ function updateBodyModalState() {
     isVisible(elements.addPhaseModal) ||
     isVisible(elements.editPhaseModal) ||
     isVisible(elements.addNoteModal) ||
+    isVisible(elements.flashNoteModal) ||
     isDetailDrawerVisible()
   ) {
     document.body.classList.add("modal-open");
@@ -624,6 +712,117 @@ async function loadTasks() {
   }
 }
 
+async function loadFlashNotes() {
+  if (flashNotesLoading) {
+    return;
+  }
+
+  flashNotesLoading = true;
+  renderFlashNotes();
+  try {
+    const response = await request(FLASH_NOTES_API_URL);
+    flashNotes = response.data || [];
+  } catch (error) {
+    showToast(error.message, true);
+  } finally {
+    flashNotesLoading = false;
+    renderFlashNotes();
+  }
+}
+
+function renderFlashNotes() {
+  if (flashNotesLoading) {
+    elements.flashNoteList.innerHTML = "<p class=\"knowledge-empty\">Loading...</p>";
+    return;
+  }
+
+  if (!flashNotes.length) {
+    elements.flashNoteList.innerHTML = "<p class=\"knowledge-empty\">No flash notes yet</p>";
+    return;
+  }
+
+  const listHtml = flashNotes
+    .map((note) => `
+      <article class="flash-note-item">
+        <p class="flash-note-content">${escapeHtml(note.noteContent || "")}</p>
+        <div class="flash-note-footer">
+          <p class="flash-note-time">${formatDateTime(note.updatedAt || note.createdAt)}</p>
+          <div class="flash-note-actions">
+            <button
+              type="button"
+              class="btn btn-secondary"
+              data-flash-action="edit"
+              data-flash-note-id="${note.id}"
+              ${addingFlashNote || deletingFlashNoteId === note.id ? "disabled" : ""}
+            >
+              Edit
+            </button>
+            <button
+              type="button"
+              class="btn btn-danger"
+              data-flash-action="delete"
+              data-flash-note-id="${note.id}"
+              ${deletingFlashNoteId === note.id || addingFlashNote ? "disabled" : ""}
+            >
+              ${deletingFlashNoteId === note.id ? "Deleting..." : "Delete"}
+            </button>
+          </div>
+        </div>
+      </article>
+    `)
+    .join("");
+
+  elements.flashNoteList.innerHTML = listHtml;
+}
+
+function startEditingFlashNote(noteId) {
+  if (addingFlashNote || deletingFlashNoteId !== null) {
+    return;
+  }
+  const note = flashNotes.find((item) => item.id === noteId);
+  if (!note) {
+    showToast("Flash note not found", true);
+    return;
+  }
+
+  editingFlashNoteId = noteId;
+  elements.flashNoteContent.value = note.noteContent || "";
+  elements.flashNoteSubmitBtn.textContent = "Save Flash Note";
+  validateFlashNoteForm(false);
+  elements.flashNoteContent.focus();
+}
+
+async function removeFlashNote(noteId) {
+  if (deletingFlashNoteId !== null || addingFlashNote) {
+    return;
+  }
+  const targetNote = flashNotes.find((item) => item.id === noteId);
+  const preview = (targetNote?.noteContent || "").trim().slice(0, 24);
+  const tip = preview ? `Delete flash note "${preview}${preview.length >= 24 ? "..." : ""}"?` : "Delete this flash note?";
+  const confirmed = await openConfirmModal(tip);
+  if (!confirmed) {
+    return;
+  }
+
+  try {
+    deletingFlashNoteId = noteId;
+    renderFlashNotes();
+    await request(`${FLASH_NOTES_API_URL}/${noteId}`, {
+      method: "DELETE"
+    });
+    if (editingFlashNoteId === noteId) {
+      resetFlashNoteForm();
+    }
+    showToast("Flash note deleted");
+    await loadFlashNotes();
+  } catch (error) {
+    showToast(error.message, true);
+  } finally {
+    deletingFlashNoteId = null;
+    renderFlashNotes();
+  }
+}
+
 function renderTable() {
   if (!tasks.length) {
     elements.taskTableBody.innerHTML = "";
@@ -651,9 +850,7 @@ function renderTable() {
             ${renderTaskNotes(task.id, task.notes)}
           </td>
           <td data-label="Phases">${renderPhaseChips(task.id, phases)}</td>
-          <td data-label="Progress">${renderProgressBar(task.overallProgress)}</td>
-          <td data-label="Created Date">${formatDate(task.createdAt)}</td>
-          <td data-label="Updated Date">${formatDate(task.updatedAt)}</td>
+          <td data-label="Progress / Dates">${renderProgressAndDates(task)}</td>
           <td data-label="Actions">
             <div class="table-actions">
               <button class="btn btn-secondary" data-action="edit" data-id="${task.id}">Edit</button>
@@ -1113,6 +1310,55 @@ async function handleAddNoteSubmit(event) {
   }
 }
 
+async function handleFlashNoteSubmit(event) {
+  event.preventDefault();
+
+  if (addingFlashNote || deletingFlashNoteId !== null) {
+    return;
+  }
+
+  if (!validateFlashNoteForm()) {
+    elements.flashNoteContent.focus();
+    return;
+  }
+
+  try {
+    addingFlashNote = true;
+    elements.flashNoteSubmitBtn.disabled = true;
+    const editing = editingFlashNoteId !== null;
+    elements.flashNoteSubmitBtn.textContent = "Saving...";
+
+    await request(editing ? `${FLASH_NOTES_API_URL}/${editingFlashNoteId}` : FLASH_NOTES_API_URL, {
+      method: editing ? "PUT" : "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        noteContent: elements.flashNoteContent.value.trim()
+      })
+    });
+
+    elements.flashNoteContent.value = "";
+    setFlashNoteValidation("", true);
+    showToast(editing ? "Flash note updated" : "Flash note added");
+    editingFlashNoteId = null;
+    await loadFlashNotes();
+    elements.flashNoteSubmitBtn.textContent = "Add Flash Note";
+    elements.flashNoteContent.focus();
+  } catch (error) {
+    showToast(error.message, true);
+  } finally {
+    addingFlashNote = false;
+    if (editingFlashNoteId === null) {
+      elements.flashNoteSubmitBtn.textContent = "Add Flash Note";
+    } else {
+      elements.flashNoteSubmitBtn.textContent = "Save Flash Note";
+    }
+    validateFlashNoteForm(false);
+    renderFlashNotes();
+  }
+}
+
 function validateAddPhaseForm() {
   const phaseName = elements.addPhaseName.value.trim();
   if (!phaseName) {
@@ -1146,11 +1392,34 @@ function validateAddNoteForm() {
   return true;
 }
 
+function validateFlashNoteForm(showError) {
+  const content = elements.flashNoteContent.value.trim();
+  const shouldShowError = showError !== false;
+  if (!content) {
+    if (shouldShowError) {
+      setFlashNoteValidation("Flash note content is required", false);
+    } else {
+      setFlashNoteValidation("", true);
+    }
+    elements.flashNoteSubmitBtn.disabled = true;
+    return false;
+  }
+  setFlashNoteValidation("", true);
+  return true;
+}
+
 function setAddNoteValidation(message, isValid) {
   elements.addNoteValidation.textContent = message;
   elements.addNoteValidation.classList.toggle("hidden", isValid);
   elements.addNoteConfirmBtn.disabled = !isValid;
   elements.addNoteContent.classList.toggle("input-invalid", !isValid);
+}
+
+function setFlashNoteValidation(message, isValid) {
+  elements.flashNoteValidation.textContent = message;
+  elements.flashNoteValidation.classList.toggle("hidden", isValid);
+  elements.flashNoteSubmitBtn.disabled = !isValid || addingFlashNote || deletingFlashNoteId !== null;
+  elements.flashNoteContent.classList.toggle("input-invalid", !isValid);
 }
 
 function setAddPhaseValidation(message, isValid) {
@@ -1233,6 +1502,41 @@ async function removeTask(taskId) {
   }
 }
 
+async function removeTaskNote(taskId, noteId) {
+  if (deletingTaskNoteId !== null) {
+    return;
+  }
+
+  const task = tasks.find((item) => item.id === taskId);
+  const note = (task?.notes || []).find((item) => item.id === noteId);
+  if (!note) {
+    showToast("Note not found", true);
+    return;
+  }
+
+  const preview = (note.noteContent || "").trim().slice(0, 24);
+  const label = preview ? `Delete note "${preview}${preview.length >= 24 ? "..." : ""}"?` : "Delete this note?";
+  const confirmed = await openConfirmModal(label);
+  if (!confirmed) {
+    return;
+  }
+
+  try {
+    deletingTaskNoteId = noteId;
+    renderTable();
+    await request(`${TASKS_API_URL}/${taskId}/notes/${noteId}`, {
+      method: "DELETE"
+    });
+    showToast("Note deleted");
+    await loadTasks();
+  } catch (error) {
+    showToast(error.message, true);
+  } finally {
+    deletingTaskNoteId = null;
+    renderTable();
+  }
+}
+
 async function request(url, options = {}) {
   const response = await fetch(url, options);
   const isJson = (response.headers.get("content-type") || "").includes("application/json");
@@ -1254,6 +1558,9 @@ function localizeMessage(message) {
   }
   if (message.startsWith("Task note not found with id")) {
     return "Note not found";
+  }
+  if (message.startsWith("Flash note not found with id")) {
+    return "Flash note not found";
   }
   if (message === "Validation failed") {
     return "Validation failed";
@@ -1352,7 +1659,19 @@ function renderTaskNotes(taskId, notes) {
       >
         <div class="project-note-meta">
           <span class="project-note-type">${formatNoteTypeLabel(note.noteType)}</span>
-          <span class="project-note-time">${formatDate(note.updatedAt || note.createdAt)}</span>
+          <div class="project-note-meta-right">
+            <span class="project-note-time">${formatDate(note.updatedAt || note.createdAt)}</span>
+            <button
+              type="button"
+              class="btn btn-danger project-note-delete-btn"
+              data-note-action="delete"
+              data-task-id="${taskId}"
+              data-note-id="${note.id}"
+              ${deletingTaskNoteId === note.id ? "disabled" : ""}
+            >
+              ${deletingTaskNoteId === note.id ? "Deleting..." : "Delete"}
+            </button>
+          </div>
         </div>
         <p class="project-note-content">${escapeHtml(note.noteContent || "")}</p>
       </div>
@@ -1380,6 +1699,22 @@ function renderProgressBar(progress, extraClass = "") {
     <div class="${className}" aria-label="Overall progress">
       <div class="progress-fill" style="width:${normalized}%"></div>
       <span class="progress-label">${label}</span>
+    </div>
+  `;
+}
+
+function renderProgressAndDates(task) {
+  return `
+    <div class="progress-date-stack">
+      ${renderProgressBar(task.overallProgress)}
+      <div class="progress-date-row">
+        <span>Created:</span>
+        <strong>${formatDate(task.createdAt)}</strong>
+      </div>
+      <div class="progress-date-row">
+        <span>Updated:</span>
+        <strong>${formatDate(task.updatedAt)}</strong>
+      </div>
     </div>
   `;
 }
@@ -1439,6 +1774,20 @@ function formatDate(value) {
   }
 
   return date.toLocaleDateString();
+}
+
+function formatDateTime(value) {
+  if (!value) {
+    return "-";
+  }
+
+  const normalized = value.includes("T") ? value : value.replace(" ", "T");
+  const date = new Date(normalized);
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return date.toLocaleString();
 }
 
 function parseDate(value) {
@@ -1516,6 +1865,7 @@ function closeDetailDrawer() {
     !isVisible(elements.addPhaseModal) &&
     !isVisible(elements.editPhaseModal) &&
     !isVisible(elements.addNoteModal) &&
+    !isVisible(elements.flashNoteModal) &&
     lastFocusedElement
   ) {
     lastFocusedElement.focus();

@@ -43,7 +43,18 @@ CREATE TABLE IF NOT EXISTS task_notes (
     note_content TEXT NOT NULL,
     created_at DATETIME NOT NULL,
     updated_at DATETIME NOT NULL,
+    is_deleted INTEGER NOT NULL DEFAULT 0,
+    deleted_at DATETIME,
     CONSTRAINT fk_task_notes_task FOREIGN KEY(task_id) REFERENCES tasks(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS flash_notes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    note_content TEXT NOT NULL,
+    created_at DATETIME NOT NULL,
+    updated_at DATETIME NOT NULL,
+    is_deleted INTEGER NOT NULL DEFAULT 0,
+    deleted_at DATETIME
 );
 
 CREATE INDEX IF NOT EXISTS idx_tasks_title ON tasks(task_title);
@@ -53,3 +64,4 @@ CREATE INDEX IF NOT EXISTS idx_task_phases_task_id ON task_phases(task_id);
 CREATE INDEX IF NOT EXISTS idx_task_knowledge_updated_at ON task_knowledge(updated_at);
 CREATE INDEX IF NOT EXISTS idx_task_notes_task_id ON task_notes(task_id);
 CREATE INDEX IF NOT EXISTS idx_task_notes_created_at ON task_notes(created_at);
+CREATE INDEX IF NOT EXISTS idx_flash_notes_updated_at ON flash_notes(updated_at);

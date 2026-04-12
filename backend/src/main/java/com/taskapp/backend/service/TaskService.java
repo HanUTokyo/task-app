@@ -180,6 +180,17 @@ public class TaskService {
         return toNoteResponse(updated);
     }
 
+    public void deleteTaskNote(Long taskId, Long noteId) {
+        taskRepository.findById(taskId)
+                .orElseThrow(() -> new TaskNotFoundException(taskId));
+
+        LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
+        boolean deleted = taskNoteRepository.softDelete(noteId, taskId, now);
+        if (!deleted) {
+            throw new TaskNoteNotFoundException(taskId, noteId);
+        }
+    }
+
     private List<TaskPhase> normalizePhases(List<PhaseRequest> phaseRequests) {
         List<TaskPhase> phases = new ArrayList<>();
 

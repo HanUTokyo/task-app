@@ -14,6 +14,7 @@
         <p>支持项目增删改查、动态阶段管理、搜索与排序。</p>
       </div>
       <div class="header-actions">
+        <button id="openFlashNoteModalBtn" class="btn btn-secondary" type="button">闪念笔记</button>
         <button id="themeToggleBtn" class="btn btn-secondary" type="button">深色模式</button>
         <a class="btn btn-secondary lang-switch-btn" href="index.html">切换英文</a>
       </div>
@@ -68,9 +69,7 @@
               <tr>
                 <th>项目</th>
                 <th>阶段列表</th>
-                <th>进度</th>
-                <th>创建日期</th>
-                <th>更新日期</th>
+                <th>进度 / 时间</th>
                 <th>操作</th>
               </tr>
             </thead>
@@ -236,6 +235,27 @@
           <button id="addNoteConfirmBtn" type="submit" class="btn btn-primary">添加笔记</button>
         </div>
       </form>
+    </div>
+  </div>
+
+  <div id="flashNoteModal" class="modal-overlay hidden" aria-hidden="true">
+    <div class="panel flash-note-panel" role="dialog" aria-modal="true" aria-labelledby="flashNoteModalTitle" aria-describedby="flashNoteModalDesc">
+      <div class="modal-header">
+        <h3 id="flashNoteModalTitle">闪念笔记</h3>
+        <button id="closeFlashNoteModalBtn" type="button" class="btn btn-secondary close-btn">关闭</button>
+      </div>
+      <p id="flashNoteModalDesc">这里记录与具体项目无关的想法，可连续新增多条。</p>
+      <form id="flashNoteForm" class="add-phase-form" novalidate>
+        <label>
+          笔记内容
+          <textarea id="flashNoteContent" maxlength="20000" required placeholder="例如：下周可以尝试把阶段看板拆成团队视图和个人视图"></textarea>
+        </label>
+        <p id="flashNoteValidation" class="add-phase-validation hidden"></p>
+        <div class="confirm-actions">
+          <button id="flashNoteSubmitBtn" type="submit" class="btn btn-primary">添加闪念</button>
+        </div>
+      </form>
+      <div id="flashNoteList" class="flash-note-list"></div>
     </div>
   </div>
 

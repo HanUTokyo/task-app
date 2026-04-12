@@ -43,7 +43,7 @@ public class TaskNoteRepository {
         String sql = """
                 SELECT id, task_id, note_type, note_content, created_at, updated_at
                 FROM task_notes
-                WHERE task_id = ?
+                WHERE task_id = ? AND is_deleted = 0
                 ORDER BY created_at DESC, id DESC
                 """;
         return jdbcTemplate.query(sql, noteRowMapper, taskId);
@@ -58,7 +58,7 @@ public class TaskNoteRepository {
         String sql = """
                 SELECT id, task_id, note_type, note_content, created_at, updated_at
                 FROM task_notes
-                WHERE task_id IN (%s)
+                WHERE task_id IN (%s) AND is_deleted = 0
                 ORDER BY task_id ASC, created_at DESC, id DESC
                 """.formatted(placeholders);
 
@@ -89,7 +89,7 @@ public class TaskNoteRepository {
                 """
                 SELECT id, task_id, note_type, note_content, created_at, updated_at
                 FROM task_notes
-                WHERE task_id = ?
+                WHERE task_id = ? AND is_deleted = 0
                 ORDER BY id DESC
                 LIMIT 1
                 """,
@@ -103,7 +103,7 @@ public class TaskNoteRepository {
         String sql = """
                 UPDATE task_notes
                 SET note_type = ?, note_content = ?, updated_at = ?
-                WHERE id = ? AND task_id = ?
+                WHERE id = ? AND task_id = ? AND is_deleted = 0
                 """;
         int affectedRows = jdbcTemplate.update(
                 sql,
@@ -124,7 +124,7 @@ public class TaskNoteRepository {
                 """
                 SELECT id, task_id, note_type, note_content, created_at, updated_at
                 FROM task_notes
-                WHERE id = ? AND task_id = ?
+                WHERE id = ? AND task_id = ? AND is_deleted = 0
                 LIMIT 1
                 """,
                 noteRowMapper,
@@ -135,6 +135,21 @@ public class TaskNoteRepository {
             return Optional.empty();
         }
         return Optional.of(rows.getFirst());
+    }
+
+    public boolean softDelete(Long noteId, Long taskId, LocalDateTime now) {
+        int affectedRows = jdbcTemplate.update(
+                """
+                UPDATE task_notes
+                SET is_deleted = 1, deleted_at = ?, updated_at = ?
+                WHERE id = ? AND task_id = ? AND is_deleted = 0
+                """,
+                formatDateTime(now),
+                formatDateTime(now),
+                noteId,
+                taskId
+        );
+        return affectedRows > 0;
     }
 
     private String normalizeText(String text) {

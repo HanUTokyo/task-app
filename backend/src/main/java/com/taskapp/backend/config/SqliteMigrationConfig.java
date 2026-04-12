@@ -18,6 +18,9 @@ public class SqliteMigrationConfig {
         ensurePhaseDescriptionColumn();
         ensureKnowledgeTable();
         ensureTaskNotesTable();
+        ensureFlashNotesTable();
+        ensureTaskNotesSoftDeleteColumns();
+        ensureFlashNotesSoftDeleteColumns();
     }
 
     private void ensurePriorityColumn() {
@@ -94,5 +97,55 @@ public class SqliteMigrationConfig {
                 """);
         jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_task_notes_task_id ON task_notes(task_id)");
         jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_task_notes_created_at ON task_notes(created_at)");
+    }
+
+    private void ensureFlashNotesTable() {
+        jdbcTemplate.execute("""
+                CREATE TABLE IF NOT EXISTS flash_notes (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    note_content TEXT NOT NULL,
+                    created_at DATETIME NOT NULL,
+                    updated_at DATETIME NOT NULL
+                )
+                """);
+        jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_flash_notes_updated_at ON flash_notes(updated_at)");
+    }
+
+    private void ensureTaskNotesSoftDeleteColumns() {
+        List<Map<String, Object>> columns = jdbcTemplate.queryForList("PRAGMA table_info(task_notes)");
+        boolean hasIsDeleted = columns.stream()
+                .map(column -> String.valueOf(column.get("name")))
+                .anyMatch(name -> "is_deleted".equalsIgnoreCase(name));
+        if (!hasIsDeleted) {
+            jdbcTemplate.execute("ALTER TABLE task_notes ADD COLUMN is_deleted INTEGER NOT NULL DEFAULT 0");
+        }
+
+        boolean hasDeletedAt = columns.stream()
+                .map(column -> String.valueOf(column.get("name")))
+                .anyMatch(name -> "deleted_at".equalsIgnoreCase(name));
+        if (!hasDeletedAt) {
+            jdbcTemplate.execute("ALTER TABLE task_notes ADD COLUMN deleted_at DATETIME");
+        }
+
+        jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_task_notes_is_deleted ON task_notes(is_deleted)");
+    }
+
+    private void ensureFlashNotesSoftDeleteColumns() {
+        List<Map<String, Object>> columns = jdbcTemplate.queryForList("PRAGMA table_info(flash_notes)");
+        boolean hasIsDeleted = columns.stream()
+                .map(column -> String.valueOf(column.get("name")))
+                .anyMatch(name -> "is_deleted".equalsIgnoreCase(name));
+        if (!hasIsDeleted) {
+            jdbcTemplate.execute("ALTER TABLE flash_notes ADD COLUMN is_deleted INTEGER NOT NULL DEFAULT 0");
+        }
+
+        boolean hasDeletedAt = columns.stream()
+                .map(column -> String.valueOf(column.get("name")))
+                .anyMatch(name -> "deleted_at".equalsIgnoreCase(name));
+        if (!hasDeletedAt) {
+            jdbcTemplate.execute("ALTER TABLE flash_notes ADD COLUMN deleted_at DATETIME");
+        }
+
+        jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_flash_notes_is_deleted ON flash_notes(is_deleted)");
     }
 }

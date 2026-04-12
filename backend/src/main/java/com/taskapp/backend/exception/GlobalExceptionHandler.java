@@ -27,6 +27,12 @@ public class GlobalExceptionHandler {
                 .body(ApiResponse.failure(ex.getMessage(), null));
     }
 
+    @ExceptionHandler(FlashNoteNotFoundException.class)
+    public ResponseEntity<ApiResponse<Void>> handleFlashNoteNotFound(FlashNoteNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(ApiResponse.failure(ex.getMessage(), null));
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ApiResponse<Void>> handleValidation(MethodArgumentNotValidException ex) {
         Map<String, String> errors = new LinkedHashMap<>();

@@ -89,4 +89,13 @@ public class TaskController {
         TaskNoteResponse updatedNote = taskService.updateTaskNote(id, noteId, request);
         return ResponseEntity.ok(ApiResponse.success("Task note updated successfully", updatedNote));
     }
+
+    @DeleteMapping("/{id}/notes/{noteId}")
+    public ResponseEntity<ApiResponse<Void>> deleteTaskNote(
+            @PathVariable Long id,
+            @PathVariable Long noteId
+    ) {
+        taskService.deleteTaskNote(id, noteId);
+        return ResponseEntity.ok(ApiResponse.success("Task note deleted successfully", null));
+    }
 }
