@@ -1574,6 +1574,12 @@ function localizeMessage(message) {
   if (message === "priority must be one of HIGH, MEDIUM, LOW") {
     return "Priority must be HIGH, MEDIUM, or LOW";
   }
+  if (message === "noteContent is required") {
+    return "Note content is required";
+  }
+  if (message === "noteContent must be at most 20000 characters") {
+    return "Note content must be at most 20000 characters";
+  }
   if (message === "Internal server error") {
     return "Internal server error";
   }
