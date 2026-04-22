@@ -1345,11 +1345,47 @@ html[data-theme="dark"] .detail-drawer-backdrop {
     padding: 0 12px 20px;
   }
 
+  .page-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
   .page-header h1 {
     font-size: 26px;
   }
 
   .header-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .dashboard-item {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
+  }
+
+  .dashboard-rank {
+    font-size: 11px;
+  }
+
+  .dashboard-name {
+    display: block;
+    width: 100%;
+    min-width: 0;
+    word-break: normal;
+    overflow-wrap: break-word;
+  }
+
+  .dashboard-progress {
+    display: block;
+    width: 100%;
+  }
+
+  .progress-track.progress-track-compact {
+    min-width: 0;
     width: 100%;
   }
 
@@ -1364,6 +1400,17 @@ html[data-theme="dark"] .detail-drawer-backdrop {
     border-spacing: 0;
   }
 
+  .task-table th:nth-child(1),
+  .task-table td:nth-child(1),
+  .task-table th:nth-child(2),
+  .task-table td:nth-child(2),
+  .task-table th:nth-child(3),
+  .task-table td:nth-child(3),
+  .task-table th:nth-child(4),
+  .task-table td:nth-child(4) {
+    width: 100%;
+  }
+
   thead {
     display: none;
   }
@@ -1372,7 +1419,13 @@ html[data-theme="dark"] .detail-drawer-backdrop {
   tr,
   td {
     display: block;
-    width: 100%;
+    width: 100% !important;
+  }
+
+  .task-table,
+  tbody tr,
+  tbody td {
+    width: 100% !important;
   }
 
   tbody tr {
@@ -1424,12 +1477,32 @@ html[data-theme="dark"] .detail-drawer-backdrop {
     max-width: 100%;
   }
 
+  .phase-chip-description {
+    max-width: 100%;
+  }
+
   .table-actions {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
 @media (max-width: 680px) {
+  .header-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .header-actions .btn,
+  .header-actions .lang-switch-btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .header-actions .lang-switch-btn {
+    grid-column: 1 / -1;
+  }
+
   .toolbar {
     grid-template-columns: 1fr;
   }
